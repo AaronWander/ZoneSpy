@@ -78,14 +78,14 @@ jobs:
           Write-Host "Collected CropAndLock output from $($exe.Directory.FullName)"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ZoneSpy-x64-Release
           path: artifact/**
 
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: CropAndLock-build-logs
           path: |
