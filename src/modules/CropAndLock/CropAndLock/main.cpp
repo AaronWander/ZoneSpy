@@ -39,6 +39,40 @@ bool m_running = true;
 // Click-through mode: when enabled, mouse events pass through cropped windows
 bool g_clickThroughEnabled = false;
 
+// Auto-start on boot
+bool g_launchAtStartup = false;
+
+bool IsLaunchAtStartupEnabled()
+{
+    HKEY hKey;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_READ, &hKey) != ERROR_SUCCESS)
+        return false;
+    wchar_t value[MAX_PATH] = {};
+    DWORD size = sizeof(value);
+    bool exists = RegQueryValueExW(hKey, L"ZoneSpy", nullptr, nullptr, reinterpret_cast<LPBYTE>(value), &size) == ERROR_SUCCESS;
+    RegCloseKey(hKey);
+    return exists;
+}
+
+void SetLaunchAtStartup(bool enable)
+{
+    HKEY hKey;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE, &hKey) != ERROR_SUCCESS)
+        return;
+    if (enable)
+    {
+        wchar_t exePath[MAX_PATH] = {};
+        GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+        RegSetValueExW(hKey, L"ZoneSpy", 0, REG_SZ, reinterpret_cast<LPBYTE>(exePath), (static_cast<DWORD>(wcslen(exePath)) + 1) * sizeof(wchar_t));
+    }
+    else
+    {
+        RegDeleteValueW(hKey, L"ZoneSpy");
+    }
+    RegCloseKey(hKey);
+    g_launchAtStartup = enable;
+}
+
 // Theming
 ThemeListener theme_listener{};
 // Keep a list of our cropped windows
@@ -143,26 +177,32 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             HMENU menu = CreatePopupMenu();
             AppendMenuW(menu, MF_STRING | (g_clickThroughEnabled ? MF_CHECKED : MF_UNCHECKED), 101, L"Click-Through");
             AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+            AppendMenuW(menu, MF_STRING | (g_launchAtStartup ? MF_CHECKED : MF_UNCHECKED), 102, L"Launch at startup");
+            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
             AppendMenuW(menu, MF_STRING, 100, L"Exit");
             SetForegroundWindow(hwnd);
             int cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, nullptr);
-            DestroyMenu(menu);
+    DestroyMenu(menu);
             if (cmd == 100)
             {
                 DestroyWindow(hwnd);
             }
-            else if (cmd == 101)
+        else if (cmd == 101)
+        {
+            g_clickThroughEnabled = !g_clickThroughEnabled;
+            for (auto& window : croppedWindows)
             {
-                g_clickThroughEnabled = !g_clickThroughEnabled;
-                for (auto& window : croppedWindows)
+                auto thumbnail = std::dynamic_pointer_cast<ThumbnailCropAndLockWindow>(window);
+                if (thumbnail)
                 {
-                    auto thumbnail = std::dynamic_pointer_cast<ThumbnailCropAndLockWindow>(window);
-                    if (thumbnail)
-                    {
-                        thumbnail->SetClickThrough(g_clickThroughEnabled);
-                    }
+                    thumbnail->SetClickThrough(g_clickThroughEnabled);
                 }
             }
+        }
+        else if (cmd == 102)
+        {
+            SetLaunchAtStartup(!g_launchAtStartup);
+        }
         }
         return 0;
     }
@@ -239,6 +279,9 @@ int WINAPI wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ PWSTR /*lpCmdLine*/
 
     // Restore previous window states after setting up the callback
     RestorePreviousWindowStates(removeWindowCallback);
+
+    // Check startup registry on init
+    g_launchAtStartup = IsLaunchAtStartupEnabled();
 
     std::function<void(CropAndLockType)> ProcessCommand = [&](CropAndLockType mode) {
         std::function<void(HWND, RECT)> windowCroppedCallback = [&, mode](HWND targetWindow, RECT cropRect) {
