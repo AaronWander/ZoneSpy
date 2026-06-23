@@ -1,0 +1,95 @@
+name: Build CropAndLock
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-cropandlock.yml"
+      - "src/modules/CropAndLock/**"
+      - "tools/build/**"
+      - "Directory.*"
+      - "PowerToys.slnx"
+      - "nuget.config"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore CropAndLock
+        shell: pwsh
+        run: |
+          msbuild PowerToys.slnx `
+            /t:Restore `
+            /p:Platform=x64 `
+            /p:Configuration=Release `
+            /p:CIBuild=true `
+            /p:IsPipeline=true `
+            /p:RestorePackagesConfig=true `
+            /m `
+            /nologo
+
+      - name: Build CropAndLock
+        shell: pwsh
+        run: |
+          .\tools\build\build.ps1 `
+            -Path "src\modules\CropAndLock\CropAndLock" `
+            -Platform x64 `
+            -Configuration Release `
+            "/p:CIBuild=true" `
+            "/p:IsPipeline=true" `
+            "/p:RestorePackagesConfig=true"
+
+      - name: Dump build logs on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          $logDir = "src/modules/CropAndLock/CropAndLock"
+          Get-ChildItem $logDir -Filter "*.errors.log" | ForEach-Object {
+            Write-Host "=== $($_.FullName) ==="
+            Get-Content $_.FullName -Tail 200
+          }
+          Get-ChildItem $logDir -Filter "*.all.log" | ForEach-Object {
+            Write-Host "=== tail: $($_.FullName) ==="
+            Get-Content $_.FullName -Tail 200
+          }
+
+      - name: Collect output
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Recurse -Filter PowerToys.CropAndLock.exe |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+          if (-not $exe) {
+            throw "PowerToys.CropAndLock.exe was not found."
+          }
+
+          New-Item -ItemType Directory -Force -Path artifact | Out-Null
+          Copy-Item -Path (Join-Path $exe.Directory.FullName "*") -Destination artifact -Recurse -Force
+          Write-Host "Collected CropAndLock output from $($exe.Directory.FullName)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PowerToys-CropAndLock-x64-Release
+          path: artifact/**
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CropAndLock-build-logs
+          path: |
+            src/modules/CropAndLock/CropAndLock/*.log
+            src/modules/CropAndLock/CropAndLock/*.binlog
