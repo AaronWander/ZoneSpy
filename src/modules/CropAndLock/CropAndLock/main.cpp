@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include <shlobj.h>
+#include <common/utils/json.h>
 #include "SettingsWindow.h"
 #include "OverlayWindow.h"
 #include "CropAndLockWindow.h"
