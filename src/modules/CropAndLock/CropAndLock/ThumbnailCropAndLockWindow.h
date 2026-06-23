@@ -33,6 +33,7 @@ struct ThumbnailCropAndLockWindow : robmikh::common::desktop::DesktopWindow<Thum
 	// Target window search and reconnection
 	static HWND FindTargetWindow(const WindowState& state);
 	void StopWatchdog();
+	void SetClickThrough(bool enable);
 
 	// State management
 	WindowState GetState() const;
@@ -55,7 +56,6 @@ private:
 
 	void StartWatchdog();
 	void CaptureTargetWindowInfo();
-	void SetClickThrough(bool enable);
 
 private:
 	HWND m_currentTarget = nullptr;
