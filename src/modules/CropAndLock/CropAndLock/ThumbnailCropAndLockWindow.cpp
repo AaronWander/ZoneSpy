@@ -912,13 +912,21 @@ void ThumbnailCropAndLockWindow::SetClickThrough(bool enable)
     auto exStyle = GetWindowLongPtrW(m_window, GWL_EXSTYLE);
     if (enable)
     {
+        exStyle |= WS_EX_LAYERED;
         exStyle |= WS_EX_TRANSPARENT;
     }
     else
     {
+        exStyle &= ~WS_EX_LAYERED;
         exStyle &= ~WS_EX_TRANSPARENT;
     }
     SetWindowLongPtrW(m_window, GWL_EXSTYLE, exStyle);
+
+    if (enable)
+    {
+        // Fully opaque window - clicks pass through via WS_EX_LAYERED + WS_EX_TRANSPARENT
+        SetLayeredWindowAttributes(m_window, 0, 255, LWA_ALPHA);
+    }
 
     // Force window to re-evaluate hit testing
     SetWindowPos(m_window, nullptr, 0, 0, 0, 0,
