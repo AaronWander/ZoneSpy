@@ -257,8 +257,8 @@ int WINAPI wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ PWSTR /*lpCmdLine*/
 
     // Hotkey IDs for standalone operation
     const int HOTKEY_THUMBNAIL = 1;
-    const int HOTKEY_REPARENT = 2;
-    const int HOTKEY_SCREENSHOT = 3;
+    // const int HOTKEY_REPARENT = 2;
+    // const int HOTKEY_SCREENSHOT = 3;
 
     std::function<void(HWND)> removeWindowCallback = [&](HWND windowHandle) {
         if (!m_running)
@@ -309,21 +309,21 @@ int WINAPI wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ PWSTR /*lpCmdLine*/
             std::shared_ptr<CropAndLockWindow> croppedWindow;
             switch (mode)
             {
-            case CropAndLockType::Reparent:
-                croppedWindow = std::make_shared<ReparentCropAndLockWindow>(title, 800, 600);
-                Logger::trace(L"Creating a reparent window");
-                Trace::CropAndLock::CreateReparentWindow();
-                break;
+            // case CropAndLockType::Reparent:
+            //     croppedWindow = std::make_shared<ReparentCropAndLockWindow>(title, 800, 600);
+            //     Logger::trace(L"Creating a reparent window");
+            //     Trace::CropAndLock::CreateReparentWindow();
+            //     break;
             case CropAndLockType::Thumbnail:
                 croppedWindow = std::make_shared<ThumbnailCropAndLockWindow>(title, 800, 600);
                 Logger::trace(L"Creating a thumbnail window");
                 Trace::CropAndLock::CreateThumbnailWindow();
                 break;
-            case CropAndLockType::Screenshot:
-                croppedWindow = std::make_shared<ScreenshotCropAndLockWindow>(title, 800, 600);
-                Logger::trace(L"Creating a screenshot window");
-                Trace::CropAndLock::CreateScreenshotWindow();
-                break;
+            // case CropAndLockType::Screenshot:
+            //     croppedWindow = std::make_shared<ScreenshotCropAndLockWindow>(title, 800, 600);
+            //     Logger::trace(L"Creating a screenshot window");
+            //     Trace::CropAndLock::CreateScreenshotWindow();
+            //     break;
             default:
                 return;
             }
@@ -360,8 +360,8 @@ int WINAPI wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ PWSTR /*lpCmdLine*/
 
     // Register global hotkeys (same defaults as PowerToys: Win+Ctrl+Shift+T/R/S)
     RegisterHotKey(nullptr, HOTKEY_THUMBNAIL, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 'T');
-    RegisterHotKey(nullptr, HOTKEY_REPARENT, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 'R');
-    RegisterHotKey(nullptr, HOTKEY_SCREENSHOT, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 'S');
+    // RegisterHotKey(nullptr, HOTKEY_REPARENT, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 'R');
+    // RegisterHotKey(nullptr, HOTKEY_SCREENSHOT, MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 'S');
 
     // Register system tray window class
     auto instance = GetModuleHandleW(nullptr);
@@ -408,10 +408,10 @@ int WINAPI wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ PWSTR /*lpCmdLine*/
 
             if (msg.wParam == HOTKEY_THUMBNAIL)
                 dispatch(CropAndLockType::Thumbnail);
-            else if (msg.wParam == HOTKEY_REPARENT)
-                dispatch(CropAndLockType::Reparent);
-            else if (msg.wParam == HOTKEY_SCREENSHOT)
-                dispatch(CropAndLockType::Screenshot);
+            // else if (msg.wParam == HOTKEY_REPARENT)
+                // dispatch(CropAndLockType::Reparent);
+            // else if (msg.wParam == HOTKEY_SCREENSHOT)
+                // dispatch(CropAndLockType::Screenshot);
         }
         else
         {
@@ -431,8 +431,8 @@ int WINAPI wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ PWSTR /*lpCmdLine*/
 
     // Cleanup hotkeys
     UnregisterHotKey(nullptr, HOTKEY_THUMBNAIL);
-    UnregisterHotKey(nullptr, HOTKEY_REPARENT);
-    UnregisterHotKey(nullptr, HOTKEY_SCREENSHOT);
+    // UnregisterHotKey(nullptr, HOTKEY_REPARENT);
+    // UnregisterHotKey(nullptr, HOTKEY_SCREENSHOT);
 
     return util::ShutdownDispatcherQueueControllerAndWait(controller, static_cast<int>(msg.wParam));
 }
