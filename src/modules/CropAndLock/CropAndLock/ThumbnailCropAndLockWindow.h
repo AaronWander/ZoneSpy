@@ -63,6 +63,7 @@ private:
 
 	void StartWatchdog();
 	void CaptureTargetWindowInfo();
+	void CaptureFrame();
 
 private:
 	HWND m_currentTarget = nullptr;
