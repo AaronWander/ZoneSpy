@@ -1,4 +1,4 @@
-name: Build CropAndLock
+name: Build ZoneSpy
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/build-cropandlock.yml"
+      - ".github/workflows/build.yml"
       - "src/modules/CropAndLock/**"
       - "tools/build/**"
       - "Directory.*"
@@ -39,7 +39,7 @@ jobs:
             /m `
             /nologo
 
-      - name: Build CropAndLock
+      - name: Build ZoneSpy
         shell: pwsh
         run: |
           .\tools\build\build.ps1 `
