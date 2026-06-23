@@ -211,6 +211,6 @@ void UpdateStreamConfig()
     json += L"\n  ]\n}";
 
     std::wofstream file(path);
-    file << json;
+    file.write(json.c_str(), static_cast<std::streamsize>(json.size()));
     file.close();
 }
