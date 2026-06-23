@@ -105,6 +105,6 @@ private:
 	bool m_isTopMost = true;
 	std::function<void(HWND)> m_closedCallback;
 
-	static std::atomic<int> s_nextStreamId;
+	static int s_nextStreamId;
 };
 

@@ -17,7 +17,7 @@ struct FrameHeader {
 };
 #pragma pack(pop)
 
-std::atomic<int> ThumbnailCropAndLockWindow::s_nextStreamId{0};
+int ThumbnailCropAndLockWindow::s_nextStreamId{0};
 
 // Frame capture constants
 constexpr UINT_PTR CAPTURE_TIMER_ID = 2002;
