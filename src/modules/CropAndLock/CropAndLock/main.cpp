@@ -282,6 +282,11 @@ int WINAPI wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ PWSTR /*lpCmdLine*/
 
     // Check startup registry on init
     g_launchAtStartup = IsLaunchAtStartupEnabled();
+    if (g_launchAtStartup)
+    {
+        // Refresh registry path in case exe was moved
+        SetLaunchAtStartup(true);
+    }
 
     std::function<void(CropAndLockType)> ProcessCommand = [&](CropAndLockType mode) {
         std::function<void(HWND, RECT)> windowCroppedCallback = [&, mode](HWND targetWindow, RECT cropRect) {
