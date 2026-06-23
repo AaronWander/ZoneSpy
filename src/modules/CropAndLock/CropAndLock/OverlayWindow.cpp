@@ -28,10 +28,10 @@ void OverlayWindow::RegisterWindowClass()
     wcex.cbSize = sizeof(wcex);
     wcex.lpfnWndProc = WndProc;
     wcex.hInstance = instance;
-    wcex.hIcon = LoadIconW(instance, IDI_APPLICATION);
+    wcex.hIcon = LoadIconW(instance, MAKEINTRESOURCE(IDI_ICON1));
     wcex.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wcex.lpszClassName = ClassName.c_str();
-    wcex.hIconSm = LoadIconW(instance, IDI_APPLICATION);
+    wcex.hIconSm = LoadIconW(instance, MAKEINTRESOURCE(IDI_ICON1));
     winrt::check_bool(RegisterClassExW(&wcex));
 }
 

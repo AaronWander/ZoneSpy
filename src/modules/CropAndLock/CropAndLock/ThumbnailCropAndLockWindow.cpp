@@ -55,7 +55,7 @@ void ThumbnailCropAndLockWindow::RegisterWindowClass()
     wcex.style = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc = WndProc;
     wcex.hInstance = instance;
-    wcex.hIcon = LoadIconW(instance, IDI_APPLICATION);
+    wcex.hIcon = LoadIconW(instance, MAKEINTRESOURCE(IDI_ICON1));
     wcex.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wcex.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
     wcex.lpszClassName = ClassName.c_str();

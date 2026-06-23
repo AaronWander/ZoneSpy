@@ -341,7 +341,7 @@ int WINAPI wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ PWSTR /*lpCmdLine*/
     nid.uID = TRAY_ICON_ID;
     nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     nid.uCallbackMessage = WM_TRAY_CALLBACK;
-    nid.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+    nid.hIcon = LoadIconW(instance, MAKEINTRESOURCE(IDI_ICON1));
     wcscpy_s(nid.szTip, L"CropAndLock - Window Cropping Utility");
     Shell_NotifyIconW(NIM_ADD, &nid);
 
