@@ -26,6 +26,16 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: |
+          msbuild src\modules\CropAndLock\CropAndLock\CropAndLock.vcxproj `
+            /t:Restore `
+            /p:Platform=x64 `
+            /p:Configuration=Release `
+            /p:RestorePackagesConfig=true `
+            /m `
+            /nologo
 
       - name: Build ZoneSpy
         shell: pwsh
@@ -70,7 +80,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PowerToys-CropAndLock-x64-Release
+          name: ZoneSpy-x64-Release
           path: artifact/**
 
       - name: Upload build logs
