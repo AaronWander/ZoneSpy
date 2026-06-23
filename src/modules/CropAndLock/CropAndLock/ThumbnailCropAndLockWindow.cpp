@@ -132,12 +132,49 @@ LRESULT ThumbnailCropAndLockWindow::MessageHandler(UINT const message, WPARAM co
             winrt::check_hresult(DwmUpdateThumbnailProperties(m_thumbnail.get(), &properties));
         }
 
-        if (message == WM_SIZING)
+    if (message == WM_SIZING)
+    {
+        auto windowRect = reinterpret_cast<RECT*>(lparam);
+
+        // Constrain aspect ratio when Shift is held
+        if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
         {
-            auto windowRect = reinterpret_cast<RECT*>(lparam);
-            SnapSizingRect(*windowRect, wparam);
-            return TRUE;
+            auto contentWidth = m_sourceRect.right - m_sourceRect.left;
+            auto contentHeight = m_sourceRect.bottom - m_sourceRect.top;
+            if (contentWidth > 0 && contentHeight > 0)
+            {
+                float aspect = static_cast<float>(contentWidth) / static_cast<float>(contentHeight);
+                LONG width = windowRect->right - windowRect->left;
+                LONG height = windowRect->bottom - windowRect->top;
+
+                switch (wparam)
+                {
+                case WMSZ_LEFT:
+                case WMSZ_RIGHT:
+                    // Drag left/right edge → width changes → constrain height
+                    windowRect->bottom = windowRect->top + static_cast<LONG>(width / aspect);
+                    break;
+                case WMSZ_TOP:
+                case WMSZ_BOTTOM:
+                    // Drag top/bottom edge → height changes → constrain width
+                    windowRect->right = windowRect->left + static_cast<LONG>(height * aspect);
+                    break;
+                case WMSZ_TOPLEFT:
+                case WMSZ_BOTTOMRIGHT:
+                case WMSZ_TOPRIGHT:
+                case WMSZ_BOTTOMLEFT:
+                    if (static_cast<float>(width) / height > aspect)
+                        windowRect->right = windowRect->left + static_cast<LONG>(height * aspect);
+                    else
+                        windowRect->bottom = windowRect->top + static_cast<LONG>(width / aspect);
+                    break;
+                }
+            }
         }
+
+        SnapSizingRect(*windowRect, wparam);
+        return TRUE;
+    }
     }
     break;
     case WM_ENTERSIZEMOVE:
