@@ -26,18 +26,6 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Restore CropAndLock
-        shell: pwsh
-        run: |
-          msbuild PowerToys.slnx `
-            /t:Restore `
-            /p:Platform=x64 `
-            /p:Configuration=Release `
-            /p:CIBuild=true `
-            /p:IsPipeline=true `
-            /p:RestorePackagesConfig=true `
-            /m `
-            /nologo
 
       - name: Build ZoneSpy
         shell: pwsh
