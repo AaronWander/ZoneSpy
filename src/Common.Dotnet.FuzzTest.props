@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Some items may be set in Directory.Build.props in root -->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- OneFuzz does not currently support testing with .NET 9.
+       As a temporary workaround, create a .NET 8 project and use file links 
+       to include the code that needs testing. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--
+    In CI, the main build runs `/t:Build;Test` across the full solution.
+    Fuzz test projects are built for OneFuzz ingestion, but should not be
+    executed as regular MSTest tests in this pass.
+  -->
+  <PropertyGroup Condition="'$(TF_BUILD)' != ''">
+    <TestingPlatformDisableCustomTestTarget>true</TestingPlatformDisableCustomTestTarget>
+  </PropertyGroup>
+</Project>
