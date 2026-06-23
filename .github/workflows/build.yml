@@ -29,13 +29,14 @@ jobs:
       - name: Restore NuGet packages
         shell: pwsh
         run: |
-          msbuild src\modules\CropAndLock\CropAndLock\CropAndLock.vcxproj `
-            /t:Restore `
-            /p:Platform=x64 `
-            /p:Configuration=Release `
-            /p:RestorePackagesConfig=true `
-            /m `
-            /nologo
+          # Restore all packages.config for all referenced projects
+          Get-ChildItem -Recurse packages.config | ForEach-Object {
+            $projectDir = Split-Path $_.FullName -Parent
+            $projectFile = Get-ChildItem $projectDir -Filter *.vcxproj | Select-Object -First 1
+            if ($projectFile) {
+              nuget restore $projectFile.FullName
+            }
+          }
 
       - name: Build ZoneSpy
         shell: pwsh
