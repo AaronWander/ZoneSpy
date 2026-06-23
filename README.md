@@ -1,120 +1,43 @@
-<p align="center">
-    <picture>
-      <source media="(prefers-color-scheme: light)" srcset="./doc/images/readme/pt-hero.light.png" />
-      <img src="./doc/images/readme/pt-hero.dark.png" />
-  </picture>
-</p>
-<h1 align="center">
-  <span>Microsoft PowerToys</span>
-</h1>
-<p align="center">
-  <span align="center">Microsoft PowerToys is a collection of utilities that help you customize Windows and streamline everyday tasks.</span>
-</p>
-<h3 align="center">
-  <a href="#-installation">Installation</a>
-  <span> · </span>
-  <a href="https://aka.ms/powertoys-docs">Documentation</a>
-  <span> · </span>
-  <a href="https://aka.ms/powertoys-releaseblog">Blog</a>
-  <span> · </span>
-  <a href="#-whats-new">Release notes</a>
-</h3>
+# ZoneSpy
 
-## 🔨 Utilities
+独立裁剪窗口工具，从 [Microsoft PowerToys](https://github.com/microsoft/PowerToys) 的 CropAndLock 模块独立而来。
 
-PowerToys includes over 30 utilities to help you customize and optimize your Windows experience:
+## 功能
 
-|   |   |   |
-| --- | --- | --- |
-| [<img src="doc/images/icons/AdvancedPaste.png" alt="Advanced Paste icon" height="16"> Advanced Paste](https://aka.ms/PowerToysOverview_AdvancedPaste) | [<img src="doc/images/icons/Always%20On%20Top.png" alt="Always on Top icon" height="16"> Always on Top](https://aka.ms/PowerToysOverview_AoT) | [<img src="doc/images/icons/Awake.png" alt="Awake icon" height="16"> Awake](https://aka.ms/PowerToysOverview_Awake) |
-| [<img src="doc/images/icons/Color%20Picker.png" alt="Color Picker icon" height="16"> Color Picker](https://aka.ms/PowerToysOverview_ColorPicker) | [<img src="doc/images/icons/Command%20Not%20Found.png" alt="Command Not Found icon" height="16"> Command Not Found](https://aka.ms/PowerToysOverview_CmdNotFound) | [<img src="doc/images/icons/Command Palette.png" alt="Command Palette icon" height="16"> Command Palette](https://aka.ms/PowerToysOverview_CmdPal) |
-| [<img src="doc/images/icons/Crop%20And%20Lock.png" alt="Crop and Lock icon" height="16"> Crop And Lock](https://aka.ms/PowerToysOverview_CropAndLock) | [<img src="doc/images/icons/Environment%20Manager.png" alt="Environment Variables icon" height="16"> Environment Variables](https://aka.ms/PowerToysOverview_EnvironmentVariables) | [<img src="doc/images/icons/FancyZones.png" alt="FancyZones icon" height="16"> FancyZones](https://aka.ms/PowerToysOverview_FancyZones) |
-| [<img src="doc/images/icons/File%20Explorer%20Preview.png" alt="File Explorer Add-ons icon" height="16"> File Explorer Add-ons](https://aka.ms/PowerToysOverview_FileExplorerAddOns) | [<img src="doc/images/icons/File%20Locksmith.png" alt="File Locksmith icon" height="16"> File Locksmith](https://aka.ms/PowerToysOverview_FileLocksmith) | [<img src="doc/images/icons/GrabAndMove.png" alt="Grab And Move icon" height="16"> Grab And Move](https://aka.ms/PowerToysOverview_GrabAndMove) |
-| [<img src="doc/images/icons/Host%20File%20Editor.png" alt="Hosts File Editor icon" height="16"> Hosts File Editor](https://aka.ms/PowerToysOverview_HostsFileEditor) | [<img src="doc/images/icons/Image%20Resizer.png" alt="Image Resizer icon" height="16"> Image Resizer](https://aka.ms/PowerToysOverview_ImageResizer) | [<img src="doc/images/icons/Keyboard%20Manager.png" alt="Keyboard Manager icon" height="16"> Keyboard Manager](https://aka.ms/PowerToysOverview_KeyboardManager) |
-| [<img src="doc/images/icons/Light Switch.png" alt="Light Switch icon" height="16"> Light Switch](https://aka.ms/PowerToysOverview_LightSwitch) | [<img src="doc/images/icons/Find My Mouse.png" alt="Mouse Utilities icon" height="16"> Mouse Utilities](https://aka.ms/PowerToysOverview_MouseUtilities) | [<img src="doc/images/icons/MouseWithoutBorders.png" alt="Mouse Without Borders icon" height="16"> Mouse Without Borders](https://aka.ms/PowerToysOverview_MouseWithoutBorders) |
-| [<img src="doc/images/icons/NewPlus.png" alt="New+ icon" height="16"> New+](https://aka.ms/PowerToysOverview_NewPlus) | [<img src="doc/images/icons/Peek.png" alt="Peek icon" height="16"> Peek](https://aka.ms/PowerToysOverview_Peek) | [<img src="doc/images/icons/PowerDisplay.png" alt="PowerDisplay icon" height="16"> PowerDisplay](https://aka.ms/PowerToysOverview_PowerDisplay) |
-| [<img src="doc/images/icons/PowerRename.png" alt="PowerRename icon" height="16"> PowerRename](https://aka.ms/PowerToysOverview_PowerRename) | [<img src="doc/images/icons/PowerToys%20Run.png" alt="PowerToys Run icon" height="16"> PowerToys Run](https://aka.ms/PowerToysOverview_PowerToysRun) | [<img src="doc/images/icons/PowerAccent.png" alt="Quick Accent icon" height="16"> Quick Accent](https://aka.ms/PowerToysOverview_QuickAccent) |
-| [<img src="doc/images/icons/Registry%20Preview.png" alt="Registry Preview icon" height="16"> Registry Preview](https://aka.ms/PowerToysOverview_RegistryPreview) | [<img src="doc/images/icons/MeasureTool.png" alt="Screen Ruler icon" height="16"> Screen Ruler](https://aka.ms/PowerToysOverview_ScreenRuler) | [<img src="doc/images/icons/Shortcut%20Guide.png" alt="Shortcut Guide icon" height="16"> Shortcut Guide](https://aka.ms/PowerToysOverview_ShortcutGuide) |
-| [<img src="doc/images/icons/PowerOCR.png" alt="Text Extractor icon" height="16"> Text Extractor](https://aka.ms/PowerToysOverview_TextExtractor) | [<img src="doc/images/icons/Workspaces.png" alt="Workspaces icon" height="16"> Workspaces](https://aka.ms/PowerToysOverview_Workspaces) | [<img src="doc/images/icons/ZoomIt.png" alt="ZoomIt icon" height="16"> ZoomIt](https://aka.ms/PowerToysOverview_ZoomIt) |
+- **窗口裁剪**：选取任意窗口的任意区域，生成一个始终保持在最前的小窗口，实时显示该区域内容
+- **三种模式**：
+  - 缩略图（Thumbnail）：浮动小窗口，实时投射
+  - 嵌入（Reparent）：将目标窗口嵌入自己创建的窗口
+  - 截图（Screenshot）：截取目标窗口区域并固定显示
+- **等比例缩放**：拖拽窗口边缘时按住 `Shift` 保持宽高比
+- **自动重连**：源窗口关闭后重开，裁剪窗口自动重新连接
+- **Click-Through**：托盘菜单开启后，鼠标可以穿透裁剪窗口操作底层窗口
+- **热键操作**：默认 `Win+Ctrl+Shift+T` 缩略图 / `R` 嵌入 / `S` 截图
 
-## 📦 Installation
+## 使用
 
-For detailed installation instructions and system requirements, visit the [installation docs](https://learn.microsoft.com/windows/powertoys/install).
+解压后运行 `PowerToys.CropAndLock.exe`，系统托盘会出现图标。右键托盘可选择退出或开启 Click-Through。
 
-But to get started quickly, choose one of the installation methods below:
-<br/><br/>
-<details open>
-<summary><strong>Download the .exe file from GitHub</strong></summary>
-<br/>
+热键直接在任意窗口上按：
 
-Go to the [PowerToys GitHub releases](https://aka.ms/installPowerToys), scroll down and select **Assets** to reveal the installation files, and choose the one that matches your architecture and install scope. For most devices, that would be _x64 per-user_.
+| 热键 | 模式 |
+|------|------|
+| Win+Ctrl+Shift+T | 缩略图裁剪 |
+| Win+Ctrl+Shift+R | 嵌入模式 |
+| Win+Ctrl+Shift+S | 截图模式 |
 
-</details>
+## 构建
 
-<details>
-<summary><strong>Microsoft Store</strong></summary>
-<br/>
-You can easily install PowerToys from the Microsoft Store:
-<p>
-  <a style="text-decoration:none" href="https://aka.ms/getPowertoys">
-    <picture>
-      <source media="(prefers-color-scheme: light)" srcset="doc/images/readme/StoreBadge-dark.png" width="148" />
-      <img src="doc/images/readme/StoreBadge-light.png" width="148" />
-  </picture></a>
-</p>
-</details>
-
-<details>
-<summary><strong>WinGet</strong></summary>
-<br/>
-Download PowerToys from [WinGet](https://github.com/microsoft/winget-cli#installing-the-client). Updating PowerToys via winget will respect the current PowerToys installation scope. To install PowerToys, run the following command from the command line / PowerShell:
-
-- User scope installer (default)
+需要 Visual Studio 2022+ 和 Windows 10 SDK。
 
 ```powershell
-winget install Microsoft.PowerToys -s winget
+.\\tools\\build\\build.ps1 -Path src\\modules\\CropAndLock\\CropAndLock -Platform x64 -Configuration Release
 ```
 
-- Machine-wide scope installer
+GitHub Actions 自动构建产物在 [Actions](https://github.com/AaronWander/ZoneSpy/actions) 页面下载。
 
-```powershell
-winget install --scope machine Microsoft.PowerToys -s winget
-```
-</details>
+## License
 
-<details>
-<summary><strong>Other methods</strong></summary>
-<br/>
-There are [community driven install methods](https://learn.microsoft.com/windows/powertoys/install#community-driven-install-tools) such as Chocolatey and Scoop. If these are your preferred install solutions, you can find the install instructions there.
-</details>
+[MIT](LICENSE)
 
-## ✨ What's new?
-
-[![What's new image](doc/images/readme/Release-Banner.png)](https://github.com/microsoft/PowerToys/releases)
-
-To see what's new, check out the [release notes](https://github.com/microsoft/PowerToys/releases/).
-
-## 🛣️ Roadmap
-
-We are planning some nice new features and improvements for the next releases – a brand-new Shortcut Guide experience, ensuring it's easier to find and install Command Palette extensions and so much more! Stay tuned for [v0.100][github-next-release-work]!
-
-## ❤️ PowerToys Community
-
-The PowerToys team is extremely grateful to have the [support of an amazing active community][community-link]. The work you do is incredibly important. PowerToys wouldn't be nearly what it is today without your help filing bugs, updating documentation, guiding the design, or writing features. We want to say thank you and take time to recognize your work. Your contributions and feedback improve PowerToys month after month!
-
-## Contributing
-
-This project welcomes contributions of all types. Besides coding features / bug fixes, other ways to assist include spec writing, design, documentation, and finding bugs. We are excited to work with the power user community to build a set of tools for helping you get the most out of Windows. We ask that **before you start work on a feature that you would like to contribute**, please read our [Contributor's Guide](CONTRIBUTING.md). We would be happy to work with you to figure out the best approach, provide guidance and mentorship throughout feature development, and help avoid any wasted or duplicate effort. Most contributions require you to agree to a [Contributor License Agreement (CLA)][oss-CLA] declaring that you grant us the rights to use your contribution and that you have permission to do so. For guidance on developing for PowerToys, please read the [developer docs](./doc/devdocs) for a detailed breakdown. This includes how to setup your computer to compile.
-
-## Code of conduct
-
-This project has adopted the [Microsoft Open Source Code of Conduct][oss-conduct-code].
-
-## Privacy statement
-
-The application logs basic diagnostic data (telemetry). For more privacy information and what we collect, see our [PowerToys Data and Privacy documentation](https://aka.ms/powertoys-data-and-privacy-documentation).
-
-[oss-CLA]: https://cla.opensource.microsoft.com
-[oss-conduct-code]: CODE_OF_CONDUCT.md
-[community-link]: COMMUNITY.md
-[github-next-release-work]: https://github.com/microsoft/PowerToys/issues?q=is%3Aissue+milestone%3A%22PowerToys+0.100%22
+ZoneSpy is based on the [CropAndLock](https://github.com/microsoft/PowerToys/tree/main/src/modules/CropAndLock) module from [Microsoft PowerToys](https://github.com/microsoft/PowerToys), licensed under the MIT License.
