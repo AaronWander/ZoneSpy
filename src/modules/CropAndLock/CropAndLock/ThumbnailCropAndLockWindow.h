@@ -33,7 +33,14 @@ struct ThumbnailCropAndLockWindow : robmikh::common::desktop::DesktopWindow<Thum
 	// Target window search and reconnection
 	static HWND FindTargetWindow(const WindowState& state);
 	void StopWatchdog();
+
+tint GetStreamId() const { return m_streamId; }
 	void SetClickThrough(bool enable);
+
+	void StartFrameCapture();
+	void StopFrameCapture();
+	void UpdateStreamConfig();
+
 
 	// State management
 	WindowState GetState() const;
@@ -86,9 +93,18 @@ private:
 	// Saved target window info for reconnection
 	WindowState m_savedTargetInfo;
 
+	// Shared memory streaming
+	int m_streamId = -1;
+	HANDLE m_frameShm = nullptr;
+	HANDLE m_frameEvent = nullptr;
+	void* m_frameData = nullptr;
+
+t// Shared memory streaming
+
 	bool m_destroyed = false;
 	bool m_isTopMost = true;
 	std::function<void(HWND)> m_closedCallback;
 
+	static std::atomic<int> s_nextStreamId;
 };
 // Force rebuild

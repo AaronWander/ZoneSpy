@@ -8,6 +8,21 @@ const std::wstring ThumbnailCropAndLockWindow::ClassName = L"CropAndLock.Thumbna
 std::once_flag ThumbnailCropAndLockWindowClassRegistration;
 constexpr int SnapDistance = 12;
 
+#pragma pack(push, 1)
+struct FrameHeader {
+    DWORD frameCount;
+    ULONGLONG timestamp;
+    DWORD width;
+    DWORD height;
+};
+#pragma pack(pop)
+
+std::atomic<int> ThumbnailCropAndLockWindow::s_nextStreamId{0};
+
+// Frame capture constants
+constexpr UINT_PTR CAPTURE_TIMER_ID = 2002;
+constexpr UINT CAPTURE_INTERVAL_MS = 66;
+
 float ComputeScaleFactor(RECT const& windowRect, RECT const& contentRect)
 {
     auto windowWidth = static_cast<float>(windowRect.right - windowRect.left);
@@ -113,6 +128,11 @@ LRESULT ThumbnailCropAndLockWindow::MessageHandler(UINT const message, WPARAM co
                     Logger::warn(L"Target window reconnection failed, will retry in {} ms", WATCHDOG_INTERVAL_MS);
                 }
                 m_watchdogTimer = SetTimer(m_window, WATCHDOG_TIMER_ID, WATCHDOG_INTERVAL_MS, nullptr);
+            }
+
+            if (wparam == CAPTURE_TIMER_ID && !m_destroyed)
+            {
+                CaptureFrame();
             }
         }
         break;
@@ -335,6 +355,10 @@ void ThumbnailCropAndLockWindow::CropAndLock(HWND windowToCrop, RECT cropRect)
 
     // Start watchdog to monitor target window lifetime
     StartWatchdog();
+
+    // Start shared memory streaming
+    m_streamId = s_nextStreamId++;
+    StartFrameCapture();
 
     // Apply click-through state if enabled
     if (g_clickThroughEnabled)
@@ -881,6 +905,7 @@ void ThumbnailCropAndLockWindow::Hide()
 
 void ThumbnailCropAndLockWindow::DisconnectTarget()
 {
+    StopFrameCapture();
     StopWatchdog();
     if (m_currentTarget != nullptr)
     {
