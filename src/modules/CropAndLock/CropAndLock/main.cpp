@@ -150,38 +150,6 @@ void UpdateStreamConfig()
     std::wstring dir = localPath + std::wstring(L"\\ZoneSpy");
     CoTaskMemFree(localPath);
     CreateDirectoryW(dir.c_str(), nullptr);
-
-    json::JsonArray arr;
-    for (const auto& win : croppedWindows)
-    {
-        auto t = std::dynamic_pointer_cast<ThumbnailCropAndLockWindow>(win);
-        if (t && t->GetStreamId() >= 0)
-        {
-            json::JsonObject obj;
-            obj.SetNamedValue(L"id", json::value(t->GetStreamId()));
-            wchar_t title[256] = {};
-            GetWindowTextW(t->Handle(), title, 256);
-            obj.SetNamedValue(L"name", json::value(std::wstring(title)));
-            RECT r = {};
-            GetClientRect(t->Handle(), &r);
-            obj.SetNamedValue(L"width", json::value(static_cast<int>(r.right - r.left)));
-            obj.SetNamedValue(L"height", json::value(static_cast<int>(r.bottom - r.top)));
-            auto idStr = std::to_wstring(t->GetStreamId());
-            obj.SetNamedValue(L"shm", json::value(L"ZoneSpy_FrameData_" + idStr));
-            obj.SetNamedValue(L"evt", json::value(L"ZoneSpy_FrameReady_" + idStr));
-            arr.Append(obj);
-        }
-    }
-    json::JsonObject root;
-    root.SetNamedValue(L"streams", arr);
-    json::to_file(dir + L"\\streams.json", root);
-    Logger::trace(L"Updated streams config");
-{
-    wchar_t* localPath = nullptr;
-    if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &localPath))) return;
-    std::wstring dir = localPath + std::wstring(L"\\ZoneSpy");
-    CoTaskMemFree(localPath);
-    CreateDirectoryW(dir.c_str(), nullptr);
     std::wstring path = dir + L"\\streams.json";
 
     std::wstring json = L"{\n  \"streams\": [\n";
