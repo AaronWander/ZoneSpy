@@ -91,3 +91,4 @@ private:
 	std::function<void(HWND)> m_closedCallback;
 
 };
+// Force rebuild
