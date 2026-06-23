@@ -179,10 +179,10 @@ void UpdateStreamConfig()
 {
     wchar_t* localPath = nullptr;
     if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &localPath))) return;
-    std::wstring dir = localPath + std::wstring(L"\ZoneSpy");
+    std::wstring dir = localPath + std::wstring(L"\\ZoneSpy");
     CoTaskMemFree(localPath);
     CreateDirectoryW(dir.c_str(), nullptr);
-    std::wstring path = dir + L"\streams.json";
+    std::wstring path = dir + L"\\streams.json";
 
     std::wstring json = L"{\n  \"streams\": [\n";
     bool first = true;
