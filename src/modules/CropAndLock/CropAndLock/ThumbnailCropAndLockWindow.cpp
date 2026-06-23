@@ -995,6 +995,75 @@ void ThumbnailCropAndLockWindow::SetClickThrough(bool enable)
         SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 }
 
+
+void ThumbnailCropAndLockWindow::CaptureFrame()
+{
+    if (!m_frameData || !m_frameShm) return;
+    RECT clientRect = {};
+    if (!GetClientRect(m_window, &clientRect)) return;
+    int w = clientRect.right - clientRect.left;
+    int h = clientRect.bottom - clientRect.top;
+    if (w <= 0 || h <= 0) return;
+
+    HDC hdcScreen = GetDC(nullptr);
+    HDC hdcMem = CreateCompatibleDC(hdcScreen);
+    HBITMAP hbit = CreateCompatibleBitmap(hdcScreen, w, h);
+    SelectObject(hdcMem, hbit);
+
+    if (PrintWindow(m_window, hdcMem, PW_RENDERFULLCONTENT))
+    {
+        BYTE* pixelBuf = static_cast<BYTE*>(m_frameData) + sizeof(FrameHeader);
+        BITMAPINFO bmi = {};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = w;
+        bmi.bmiHeader.biHeight = -h;
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+        GetDIBits(hdcMem, hbit, 0, h, pixelBuf, &bmi, DIB_RGB_COLORS);
+
+        auto hdr = static_cast<FrameHeader*>(m_frameData);
+        hdr->frameCount++;
+        hdr->timestamp = GetTickCount64();
+        hdr->width = static_cast<DWORD>(w);
+        hdr->height = static_cast<DWORD>(h);
+        SetEvent(m_frameEvent);
+    }
+    DeleteObject(hbit);
+    DeleteDC(hdcMem);
+    ReleaseDC(nullptr, hdcScreen);
+}
+
+void ThumbnailCropAndLockWindow::StartFrameCapture()
+{
+    StopFrameCapture();
+    const DWORD shmSize = sizeof(FrameHeader) + 3840 * 2160 * 4;
+    auto shmName = L"ZoneSpy_FrameData_" + std::to_wstring(m_streamId);
+    auto evtName = L"ZoneSpy_FrameReady_" + std::to_wstring(m_streamId);
+    HANDLE h = OpenEventW(EVENT_ALL_ACCESS, FALSE, evtName.c_str());
+    if (h) { CloseHandle(h); }
+    m_frameShm = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, shmSize, shmName.c_str());
+    if (!m_frameShm) { Logger::error(L"Failed to create shared memory for stream {}", m_streamId); return; }
+    m_frameData = MapViewOfFile(m_frameShm, FILE_MAP_WRITE, 0, 0, shmSize);
+    if (!m_frameData) { Logger::error(L"Failed to map shared memory"); return; }
+    ZeroMemory(m_frameData, sizeof(FrameHeader));
+    m_frameEvent = CreateEventW(nullptr, FALSE, FALSE, evtName.c_str());
+    if (!m_frameEvent) { Logger::error(L"Failed to create frame event"); return; }
+    SetTimer(m_window, CAPTURE_TIMER_ID, CAPTURE_INTERVAL_MS, nullptr);
+}
+
+void ThumbnailCropAndLockWindow::StopFrameCapture()
+{
+    KillTimer(m_window, CAPTURE_TIMER_ID);
+    if (m_frameData) { UnmapViewOfFile(m_frameData); m_frameData = nullptr; }
+    if (m_frameShm) { CloseHandle(m_frameShm); m_frameShm = nullptr; }
+    if (m_frameEvent) { CloseHandle(m_frameEvent); m_frameEvent = nullptr; }
+}
+
+void ThumbnailCropAndLockWindow::UpdateStreamConfig()
+{
+}
+
 bool ThumbnailCropAndLockWindow::ReconnectToTarget()
 {
     if (m_destroyed)
