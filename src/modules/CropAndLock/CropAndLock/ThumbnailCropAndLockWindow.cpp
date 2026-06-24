@@ -148,23 +148,6 @@ LRESULT ThumbnailCropAndLockWindow::MessageHandler(UINT const message, WPARAM co
             winrt::check_hresult(DwmUpdateThumbnailProperties(m_thumbnail.get(), &properties));
         }
 
-        // If D3D11 capture is active, recreate pool at the new window size
-        if (m_framePool)
-        {
-            RECT clientRect = {};
-            winrt::check_bool(GetClientRect(m_window, &clientRect));
-            int cw = clientRect.right - clientRect.left;
-            int ch = clientRect.bottom - clientRect.top;
-            if (cw > 0 && ch > 0)
-            {
-                m_framePool.Recreate(
-                    m_framePool.Device(),
-                    winrt::Windows::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,
-                    1,
-                    { cw, ch });
-            }
-        }
-
     if (message == WM_SIZING)
     {
         auto windowRect = reinterpret_cast<RECT*>(lparam);
@@ -1035,8 +1018,8 @@ void ThumbnailCropAndLockWindow::OnFrameArrived(
     // Get the ID3D11Texture2D from the capture frame.
     auto frameSurface = frame.Surface();
     auto dxgiAccess = frameSurface.as<Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
-    ID3D11Texture2D* srcTexture = nullptr;
-    winrt::check_hresult(dxgiAccess->GetInterface(__uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&srcTexture)));
+    com_ptr<ID3D11Texture2D> srcTexture;
+    winrt::check_hresult(dxgiAccess->GetInterface(__uuidof(ID3D11Texture2D), srcTexture.put_void()));
 
     D3D11_TEXTURE2D_DESC srcDesc{};
     srcTexture->GetDesc(&srcDesc);
@@ -1051,15 +1034,15 @@ void ThumbnailCropAndLockWindow::OnFrameArrived(
     stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
     stagingDesc.MiscFlags = 0;
 
-    ID3D11Texture2D* stagingTexture;
-    winrt::check_hresult(d3dDevice->CreateTexture2D(&stagingDesc, nullptr, &stagingTexture));
+    com_ptr<ID3D11Texture2D> stagingTexture;
+    winrt::check_hresult(d3dDevice->CreateTexture2D(&stagingDesc, nullptr, stagingTexture.put()));
 
     // Copy GPU texture → staging (D3D handles the GPU→CPU transfer).
-    d3dContext->CopySubresourceRegion(stagingTexture, 0, 0, 0, 0, srcTexture, 0, nullptr);
+    d3dContext->CopySubresourceRegion(stagingTexture.get(), 0, 0, 0, 0, srcTexture.get(), 0, nullptr);
 
     // Map for CPU read.
     D3D11_MAPPED_SUBRESOURCE mapped{};
-    winrt::check_hresult(d3dContext->Map(stagingTexture, 0, D3D11_MAP_READ, 0, &mapped));
+    winrt::check_hresult(d3dContext->Map(stagingTexture.get(), 0, D3D11_MAP_READ, 0, &mapped));
 
     // Write pixels to shared memory.
     BYTE* pixelBuf = static_cast<BYTE*>(m_frameData) + sizeof(FrameHeader);
@@ -1083,11 +1066,7 @@ void ThumbnailCropAndLockWindow::OnFrameArrived(
         }
     }
 
-    d3dContext->Unmap(stagingTexture, 0);
-    stagingTexture->Release();
-
-    // Release source texture (we got it from the frame via GetInterface, so we must Release).
-    srcTexture->Release();
+    d3dContext->Unmap(stagingTexture.get(), 0);
 
     // Check content change.
     bool changed = HasContentChanged(pixelBuf, w, h, dstStride);
@@ -1130,10 +1109,10 @@ void ThumbnailCropAndLockWindow::OnFrameArrived(
 
 // ── Static (shared) D3D11 device ──────────────────────────────────
 
-ID3D11Device* ThumbnailCropAndLockWindow::s_d3dDevice = nullptr;
-ID3D11DeviceContext* ThumbnailCropAndLockWindow::s_d3dContext = nullptr;
+com_ptr<ID3D11Device> ThumbnailCropAndLockWindow::s_d3dDevice;
+com_ptr<ID3D11DeviceContext> ThumbnailCropAndLockWindow::s_d3dContext;
 
-ID3D11Device* ThumbnailCropAndLockWindow::D3D11Device()
+com_ptr<ID3D11Device> ThumbnailCropAndLockWindow::D3D11Device()
 {
     if (!s_d3dDevice)
     {
@@ -1143,12 +1122,12 @@ ID3D11Device* ThumbnailCropAndLockWindow::D3D11Device()
             D3D11_CREATE_DEVICE_BGRA_SUPPORT,
             levels, ARRAYSIZE(levels),
             D3D11_SDK_VERSION,
-            &s_d3dDevice, nullptr, &s_d3dContext));
+            s_d3dDevice.put(), nullptr, s_d3dContext.put()));
     }
     return s_d3dDevice;
 }
 
-ID3D11DeviceContext* ThumbnailCropAndLockWindow::D3D11Context()
+com_ptr<ID3D11DeviceContext> ThumbnailCropAndLockWindow::D3D11Context()
 {
     D3D11Device(); // ensure device & context are created
     return s_d3dContext;
@@ -1221,6 +1200,21 @@ void ThumbnailCropAndLockWindow::StartFrameCapture()
     m_frameArrivedToken = m_framePool.FrameArrived(
         [self](auto const& pool, auto const&) { self->OnFrameArrived(pool, nullptr); });
 
+    // Register SizeChanged → recreate pool at new size.
+    m_sizeChangedToken = m_framePool.SizeChanged(
+        [self](winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& pool, auto const&) {
+            RECT cr = {};
+            GetClientRect(self->m_window, &cr);
+            int w = cr.right - cr.left;
+            int h = cr.bottom - cr.top;
+            if (w > 0 && h > 0)
+            {
+                pool.Recreate(
+                    pool.Device(),
+                    winrt::Windows::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,
+                    1,
+                    { w, h });
+            }
         });
 
     // Start capture session.
@@ -1245,10 +1239,11 @@ void ThumbnailCropAndLockWindow::StopFrameCapture()
         m_captureSession = nullptr;
     }
 
-    // Unregister event handler, then close pool.
+    // Unregister event handlers, then close pool.
     if (m_framePool)
     {
         m_framePool.FrameArrived(m_frameArrivedToken);
+        m_framePool.SizeChanged(m_sizeChangedToken);
         m_framePool.Close();
         m_framePool = nullptr;
     }

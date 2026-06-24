@@ -80,8 +80,8 @@ private:
 	bool HasContentChanged(const BYTE* pixels, int w, int h, int stride);
 
 	// Static D3D11 device shared across all windows
-	static ID3D11Device* D3D11Device();
-	static ID3D11DeviceContext* D3D11Context();
+	static com_ptr<ID3D11Device> D3D11Device();
+	static com_ptr<ID3D11DeviceContext> D3D11Context();
 
 private:
 	HWND m_currentTarget = nullptr;
@@ -127,8 +127,9 @@ private:
 	// D3D11 GPU capture objects
 	winrt::Windows::Graphics::Capture::GraphicsCaptureItem m_captureItem{ nullptr };
 	winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool m_framePool{ nullptr };
-	winrt::Windows::Graphics::Capture::GraphicsCaptureSession m_captureSession{ nullptr };
+	winrt::Windows::Graphics::Capture::Direct3D11CaptureSession m_captureSession{ nullptr };
 	winrt::event_token m_frameArrivedToken{};
+	winrt::event_token m_sizeChangedToken{};
 
 	// Content-change detection
 	uint32_t m_previousFrameHash{0};
@@ -140,7 +141,7 @@ private:
 	static constexpr int RATE_LIMIT_MAX_MS = 500;
 
 	static int s_nextStreamId;
-	static ID3D11Device* s_d3dDevice;
-	static ID3D11DeviceContext* s_d3dContext;
+	static com_ptr<ID3D11Device> s_d3dDevice;
+	static com_ptr<ID3D11DeviceContext> s_d3dContext;
 };
 
