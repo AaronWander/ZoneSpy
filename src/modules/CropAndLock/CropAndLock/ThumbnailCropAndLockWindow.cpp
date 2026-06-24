@@ -129,11 +129,11 @@ LRESULT ThumbnailCropAndLockWindow::MessageHandler(UINT const message, WPARAM co
                 }
                 m_watchdogTimer = SetTimer(m_window, WATCHDOG_TIMER_ID, WATCHDOG_INTERVAL_MS, nullptr);
             }
+        }
 
-            if (wparam == CAPTURE_TIMER_ID && !m_destroyed)
-            {
-                CaptureFrame();
-            }
+        if (wparam == CAPTURE_TIMER_ID && !m_destroyed)
+        {
+            CaptureFrame();
         }
         break;
     case WM_SIZE:
