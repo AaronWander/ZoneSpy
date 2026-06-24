@@ -771,10 +771,19 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
 
     // Phase 2: Snap to other ZoneSpy windows and match perpendicular dimension.
     // Left/right edge snap → match height. Top/bottom edge snap → match width.
-    // This lets you build neat rows/columns by resizing a window against a neighbor.
-    // When Shift is held, the perpendicular dimension is recalculated from the
-    // original content aspect ratio instead of matching the neighbor's size.
+    // When Shift is held, match dimension is recalculated from content aspect ratio.
+    //
+    // Guard: skip if user hasn't actually dragged yet (first WM_SIZING fires
+    // with the unmoved rect). This prevents snap-on-click.
     {
+        RECT actualRect{};
+        GetWindowRect(m_window, &actualRect);
+        bool hasDragged = abs(windowRect.left - actualRect.left) > 2 ||
+                          abs(windowRect.right - actualRect.right) > 2 ||
+                          abs(windowRect.top - actualRect.top) > 2 ||
+                          abs(windowRect.bottom - actualRect.bottom) > 2;
+        if (!hasDragged) goto skip_phase2;
+
         constexpr int WW_SNAP = SnapDistance + 4;
         struct MatchInfo { HWND self; RECT r; bool found; } match{ m_window, windowRect, false };
 
@@ -798,25 +807,38 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
             if (abs(self.left - o.right) <= WW_SNAP && self.bottom > o.top && self.top < o.bottom)
             {
                 mi->r.left = o.right;
-                if (!shiftHeld) { mi->r.bottom = mi->r.top + oh; }
+                // Only match height if it hasn't already been matched (so user can still adjust).
+                if (!shiftHeld && abs((self.bottom - self.top) - oh) > 2)
+                {
+                    mi->r.bottom = mi->r.top + oh;
+                }
                 mi->found = true;
             }
             else if (abs(self.right - o.left) <= WW_SNAP && self.bottom > o.top && self.top < o.bottom)
             {
                 mi->r.right = o.left;
-                if (!shiftHeld) { mi->r.bottom = mi->r.top + oh; }
+                if (!shiftHeld && abs((self.bottom - self.top) - oh) > 2)
+                {
+                    mi->r.bottom = mi->r.top + oh;
+                }
                 mi->found = true;
             }
             else if (abs(self.top - o.bottom) <= WW_SNAP && self.right > o.left && self.left < o.right)
             {
                 mi->r.top = o.bottom;
-                if (!shiftHeld) { mi->r.right = mi->r.left + ow; }
+                if (!shiftHeld && abs((self.right - self.left) - ow) > 2)
+                {
+                    mi->r.right = mi->r.left + ow;
+                }
                 mi->found = true;
             }
             else if (abs(self.bottom - o.top) <= WW_SNAP && self.right > o.left && self.left < o.right)
             {
                 mi->r.bottom = o.top;
-                if (!shiftHeld) { mi->r.right = mi->r.left + ow; }
+                if (!shiftHeld && abs((self.right - self.left) - ow) > 2)
+                {
+                    mi->r.right = mi->r.left + ow;
+                }
                 mi->found = true;
             }
             return TRUE;
@@ -824,8 +846,7 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
 
         if (match.found)
         {
-            // When Shift is held, recalc the perpendicular dimension from aspect ratio
-            // instead of matching the neighbor. This keeps content aspect ratio stable.
+            // Shift: recalc perpendicular from content aspect ratio instead of neighbor size.
             if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
             {
                 LONG srcW = m_sourceRect.right - m_sourceRect.left;
@@ -836,14 +857,13 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
                     LONG snappedW = match.r.right - match.r.left;
                     LONG snappedH = match.r.bottom - match.r.top;
 
+                    // Only recalc on the first snap (when the snapped rect differs from input).
                     if (match.r.left != windowRect.left || match.r.right != windowRect.right)
                     {
-                        // Horizontal snap → width changed → recalc height
                         match.r.bottom = match.r.top + static_cast<LONG>(snappedW / aspect);
                     }
                     else if (match.r.top != windowRect.top || match.r.bottom != windowRect.bottom)
                     {
-                        // Vertical snap → height changed → recalc width
                         match.r.right = match.r.left + static_cast<LONG>(snappedH * aspect);
                     }
                 }
@@ -851,6 +871,8 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
             windowRect = match.r;
         }
     }
+    skip_phase2:
+    ;
 }
 
 void ThumbnailCropAndLockWindow::CollectWindowSnapCandidatesX(const RECT& windowRect, std::vector<SnapCandidateX>& candidates)
