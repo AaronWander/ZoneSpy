@@ -186,9 +186,15 @@ void UpdateStreamConfig()
     }
     json += L"\n  ]\n}";
 
-    std::wofstream file(path);
-    file.write(json.c_str(), static_cast<std::streamsize>(json.size()));
-    file.close();
+    // Win32 API write - encodes as UTF-16, reliable
+    HANDLE hFile = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        DWORD written = 0;
+        DWORD bytesToWrite = static_cast<DWORD>(json.size() * sizeof(wchar_t));
+        WriteFile(hFile, json.c_str(), bytesToWrite, &written, nullptr);
+        CloseHandle(hFile);
+    }
 }
 
 
