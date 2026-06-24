@@ -772,6 +772,8 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
     // Phase 2: Snap to other ZoneSpy windows and match perpendicular dimension.
     // Left/right edge snap → match height. Top/bottom edge snap → match width.
     // This lets you build neat rows/columns by resizing a window against a neighbor.
+    // NOTE: Skipped when Shift is held (aspect-ratio lock takes priority).
+    if (!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
     {
         constexpr int WW_SNAP = SnapDistance + 4;
         struct MatchInfo { HWND self; RECT r; bool found; } match{ m_window, windowRect, false };
