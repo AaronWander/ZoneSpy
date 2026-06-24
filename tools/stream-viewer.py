@@ -42,48 +42,19 @@ def open_streams(streams):
 
 
 def read_frame(buf):
-    """
-    Return (pixels, timestamp) or (None, reason_string).
-
-    Handles the ZoneSpy odd/even sequence guard:
-      - frameCount odd  = writer is mid-write → skip
-      - frameCount even = frame is consistent → read
-      - Re-checks frameCount after reading pixels to detect race.
-    """
+    """Return (pixels, timestamp) or (None, reason_string)."""
     try:
-        # --- Phase 1: Read and validate header atomically ---
         buf.seek(0)
+        # Read packed FrameHeader (20 bytes, no padding)
         fc = struct.unpack_from("<I", buf, 0)[0]
-
-        # Odd frame count = writer is still writing → skip
-        if fc & 1:
-            return None, "in_progress"
-
-        # Read remaining header fields
         ts = struct.unpack_from("<Q", buf, 4)[0]
         w = struct.unpack_from("<I", buf, 12)[0]
         h = struct.unpack_from("<I", buf, 16)[0]
-        if w == 0 and h == 0:
-            return None, "no_capture_yet"
+        if fc == 0 and w == 0 and h == 0:
+            return None, f"no_capture_yet(header=all_zero)"
         if not (0 < w <= 3840 and 0 < h <= 2160):
             return None, f"invalid_dims({w}x{h})"
-
-        # --- Phase 2: Verify header wasn't torn (re-check frameCount) ---
-        buf.seek(0)
-        fc2 = struct.unpack_from("<I", buf, 0)[0]
-        if fc2 != fc:
-            return None, f"torn_frame(was={fc}, now={fc2})"
-
-        # --- Phase 3: Read pixel data ---
-        buf.seek(20)  # skip header
         pixels = np.frombuffer(buf.read(w * h * 4), dtype=np.uint8).reshape(h, w, 4)
-
-        # --- Phase 4: Final consistency check ---
-        buf.seek(0)
-        fc3 = struct.unpack_from("<I", buf, 0)[0]
-        if fc3 != fc:
-            return None, f"torn_frame_postread(was={fc}, now={fc3})"
-
         return pixels, ts
     except Exception as e:
         return None, f"read_error({e})"
@@ -129,10 +100,7 @@ def main():
                 statuses[i] = f"OK ({frame.shape[1]}x{frame.shape[0]})"
                 any_new = True
             else:
-                # Suppress noise for expected skips
-                if reason in ("in_progress", "no_capture_yet"):
-                    pass
-                else:
+                if isinstance(reason, str):
                     statuses[i] = reason
 
         # Report status periodically

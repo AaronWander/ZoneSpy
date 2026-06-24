@@ -3,11 +3,6 @@
 #include "CropAndLockWindow.h"
 #include "WindowState.h"
 #include <vector>
-#include <atomic>
-#include <d3d11_4.h>
-#include <winrt/Windows.Graphics.Capture.h>
-#include <winrt/Windows.Graphics.DirectX.h>
-#include <winrt/Windows.Graphics.DirectX.Direct3d11.h>
 
 // Snap candidate structures
 struct SnapCandidateX
@@ -70,19 +65,6 @@ private:
 	void CaptureTargetWindowInfo();
 	void CaptureFrame();
 
-	// D3D11 GPU readback
-	void OnFrameArrived(
-		winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& pool,
-		winrt::Windows::Foundation::IInspectable const&);
-
-	// Content-change detection
-	uint32_t ComputeFrameHash(const BYTE* pixels, int w, int h, int stride) const;
-	bool HasContentChanged(const BYTE* pixels, int w, int h, int stride);
-
-	// Static D3D11 device shared across all windows
-	static com_ptr<ID3D11Device> D3D11Device();
-	static com_ptr<ID3D11DeviceContext> D3D11Context();
-
 private:
 	HWND m_currentTarget = nullptr;
 	POINT m_previousPosition = {};
@@ -123,25 +105,6 @@ private:
 	bool m_isTopMost = true;
 	std::function<void(HWND)> m_closedCallback;
 
-
-	// D3D11 GPU capture objects
-	winrt::Windows::Graphics::Capture::GraphicsCaptureItem m_captureItem{ nullptr };
-	winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool m_framePool{ nullptr };
-	winrt::Windows::Graphics::Capture::Direct3D11CaptureSession m_captureSession{ nullptr };
-	winrt::event_token m_frameArrivedToken{};
-	winrt::event_token m_sizeChangedToken{};
-
-	// Content-change detection
-	uint32_t m_previousFrameHash{0};
-	int m_consecutiveIdenticalFrames{0};
-
-	// Rate limiter (ms minimum between signaled frames)
-	int m_rateLimitIntervalMs{66};
-	ULONGLONG m_lastFrameTimeMs{0};
-	static constexpr int RATE_LIMIT_MAX_MS = 500;
-
 	static int s_nextStreamId;
-	static com_ptr<ID3D11Device> s_d3dDevice;
-	static com_ptr<ID3D11DeviceContext> s_d3dContext;
 };
 
