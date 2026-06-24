@@ -168,7 +168,15 @@ void UpdateStreamConfig()
             auto idStr = std::to_wstring(t->GetStreamId());
             json += L"    {\n";
             json += L"      \"id\": " + std::to_wstring(t->GetStreamId()) + L",\n";
-            json += L"      \"name\": \"" + std::wstring(title) + L"\",\n";
+        // Escape special characters in title for valid JSON
+        std::wstring escapedTitle;
+        for (auto ch : std::wstring(title))
+        {
+            if (ch == L'"') escapedTitle += L"\\\"";
+            else if (ch == L'\\') escapedTitle += L"\\\\";
+            else if (ch >= 32) escapedTitle += ch;
+        }
+        json += L"      \"name\": \"" + escapedTitle + L"\",\n";
             json += L"      \"width\": " + std::to_wstring(static_cast<int>(r.right - r.left)) + L",\n";
             json += L"      \"height\": " + std::to_wstring(static_cast<int>(r.bottom - r.top)) + L",\n";
             json += L"      \"shm\": \"ZoneSpy_FrameData_" + idStr + L"\",\n";
