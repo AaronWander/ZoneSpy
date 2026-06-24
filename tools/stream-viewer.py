@@ -45,8 +45,11 @@ def read_frame(buf):
     """Return (pixels, timestamp) or (None, reason_string)."""
     try:
         buf.seek(0)
-        raw = buf.read(20)
-        fc, ts, w, h = struct.unpack("I Q I I", raw)
+        # Read packed FrameHeader (20 bytes, no padding)
+        fc = struct.unpack_from("<I", buf, 0)[0]
+        ts = struct.unpack_from("<Q", buf, 4)[0]
+        w = struct.unpack_from("<I", buf, 12)[0]
+        h = struct.unpack_from("<I", buf, 16)[0]
         if fc == 0 and w == 0 and h == 0:
             return None, f"no_capture_yet(header=all_zero)"
         if not (0 < w <= 3840 and 0 < h <= 2160):
