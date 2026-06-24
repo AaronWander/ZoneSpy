@@ -1,5 +1,7 @@
 #include "pch.h"
 #include "ThumbnailCropAndLockWindow.h"
+#include <windows.graphics.capture.interop.h>
+#include <windows.graphics.directx.direct3d11.interop.h>
 
 // Global click-through flag, defined in main.cpp
 extern bool g_clickThroughEnabled;
@@ -19,9 +21,6 @@ struct FrameHeader {
 
 int ThumbnailCropAndLockWindow::s_nextStreamId{0};
 
-// Frame capture constants
-constexpr UINT_PTR CAPTURE_TIMER_ID = 2002;
-constexpr UINT CAPTURE_INTERVAL_MS = 66;
 
 float ComputeScaleFactor(RECT const& windowRect, RECT const& contentRect)
 {
@@ -131,9 +130,6 @@ LRESULT ThumbnailCropAndLockWindow::MessageHandler(UINT const message, WPARAM co
             }
         }
 
-        if (wparam == CAPTURE_TIMER_ID && !m_destroyed)
-        {
-            CaptureFrame();
         }
         break;
     case WM_SIZE:
@@ -998,53 +994,153 @@ void ThumbnailCropAndLockWindow::SetClickThrough(bool enable)
 
 void ThumbnailCropAndLockWindow::CaptureFrame()
 {
-    if (!m_frameData || !m_frameShm) return;
-    RECT clientRect = {};
-    if (!GetClientRect(m_window, &clientRect)) return;
-    int w = clientRect.right - clientRect.left;
-    int h = clientRect.bottom - clientRect.top;
-    if (w <= 0 || h <= 0) return;
+    // Capturing is now handled by OnFrameArrived via the D3D11 capture session.
+    // This stub is kept for callers that may invoke CaptureFrame() directly.
+}
 
-    HDC hdcScreen = GetDC(nullptr);
-    HDC hdcMem = CreateCompatibleDC(hdcScreen);
-    HBITMAP hbit = CreateCompatibleBitmap(hdcScreen, w, h);
-    SelectObject(hdcMem, hbit);
+void ThumbnailCropAndLockWindow::OnFrameArrived(
+    winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& pool,
+    winrt::Windows::Foundation::IInspectable const&)
+{
+    if (m_destroyed || !m_frameData) return;
 
-    if (PrintWindow(m_window, hdcMem, PW_RENDERFULLCONTENT))
+    auto frame = pool.TryGetNextFrame();
+    if (!frame) return;
+
+    // Rate limit: skip if we sent a frame too recently.
+    ULONGLONG now = GetTickCount64();
+    if (now - m_lastFrameTimeMs < static_cast<ULONGLONG>(m_rateLimitIntervalMs))
     {
-        BYTE* pixelBuf = static_cast<BYTE*>(m_frameData) + sizeof(FrameHeader);
-        BITMAPINFO bmi = {};
-        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-        bmi.bmiHeader.biWidth = w;
-        bmi.bmiHeader.biHeight = -h;
-        bmi.bmiHeader.biPlanes = 1;
-        bmi.bmiHeader.biBitCount = 32;
-        bmi.bmiHeader.biCompression = BI_RGB;
-        GetDIBits(hdcMem, hbit, 0, h, pixelBuf, &bmi, DIB_RGB_COLORS);
+        return;
+    }
+    m_lastFrameTimeMs = now;
 
-        auto hdr = static_cast<FrameHeader*>(m_frameData);
-        hdr->frameCount++;
-        hdr->timestamp = GetTickCount64();
-        hdr->width = static_cast<DWORD>(w);
-        hdr->height = static_cast<DWORD>(h);
+    // Get the ID3D11Texture2D from the capture frame.
+    auto frameSurface = frame.Surface();
+    auto dxgiAccess = frameSurface.as<Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
+    com_ptr<ID3D11Texture2D> srcTexture;
+    winrt::check_hresult(dxgiAccess->GetInterface(__uuidof(ID3D11Texture2D), srcTexture.put_void()));
+
+    D3D11_TEXTURE2D_DESC srcDesc{};
+    srcTexture->GetDesc(&srcDesc);
+
+    // Create staging texture for CPU readback.
+    auto d3dDevice = D3D11Device();
+    auto d3dContext = D3D11Context();
+
+    D3D11_TEXTURE2D_DESC stagingDesc = srcDesc;
+    stagingDesc.Usage = D3D11_USAGE_STAGING;
+    stagingDesc.BindFlags = 0;
+    stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    stagingDesc.MiscFlags = 0;
+
+    com_ptr<ID3D11Texture2D> stagingTexture;
+    winrt::check_hresult(d3dDevice->CreateTexture2D(&stagingDesc, nullptr, stagingTexture.put()));
+
+    // Copy GPU texture → staging (D3D handles the GPU→CPU transfer).
+    d3dContext->CopySubresourceRegion(stagingTexture.get(), 0, 0, 0, 0, srcTexture.get(), 0, nullptr);
+
+    // Map for CPU read.
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    winrt::check_hresult(d3dContext->Map(stagingTexture.get(), 0, D3D11_MAP_READ, 0, &mapped));
+
+    // Write pixels to shared memory.
+    BYTE* pixelBuf = static_cast<BYTE*>(m_frameData) + sizeof(FrameHeader);
+    int w = static_cast<int>(srcDesc.Width);
+    int h = static_cast<int>(srcDesc.Height);
+    int srcStride = mapped.RowPitch;
+    int dstStride = w * 4;
+
+    if (srcStride == dstStride)
+    {
+        memcpy(pixelBuf, mapped.pData, static_cast<size_t>(h) * dstStride);
     }
     else
     {
-        // PrintWindow failed - still increment frameCount so viewer can detect activity
-        auto hdr = static_cast<FrameHeader*>(m_frameData);
-        hdr->frameCount++;
-        hdr->timestamp = GetTickCount64();
+        // Handle row-pitch mismatch (safe copy row by row).
+        for (int y = 0; y < h; ++y)
+        {
+            memcpy(pixelBuf + static_cast<size_t>(y) * dstStride,
+                   static_cast<const BYTE*>(mapped.pData) + static_cast<size_t>(y) * srcStride,
+                   dstStride);
+        }
     }
-    SetEvent(m_frameEvent);
 
-    DeleteObject(hbit);
-    DeleteDC(hdcMem);
-    ReleaseDC(nullptr, hdcScreen);
+    d3dContext->Unmap(stagingTexture.get(), 0);
+
+    // Check content change.
+    bool changed = HasContentChanged(pixelBuf, w, h, dstStride);
+
+    auto hdr = static_cast<FrameHeader*>(m_frameData);
+    if (changed)
+    {
+        m_consecutiveIdenticalFrames = 0;
+
+        DWORD nextFrame = (hdr->frameCount + 1) | 1;
+        hdr->frameCount = nextFrame;
+        std::atomic_thread_fence(std::memory_order_release);
+
+        hdr->timestamp = GetTickCount64();
+        hdr->width = static_cast<DWORD>(w);
+        hdr->height = static_cast<DWORD>(h);
+
+        std::atomic_thread_fence(std::memory_order_release);
+        hdr->frameCount = nextFrame & ~1;
+        std::atomic_thread_fence(std::memory_order_release);
+
+        SetEvent(m_frameEvent);
+    }
+    else
+    {
+        m_consecutiveIdenticalFrames++;
+    }
+
+    // Adjust rate limit: static → 500ms, dynamic → 66ms.
+    if (m_consecutiveIdenticalFrames >= 15)
+    {
+        m_rateLimitIntervalMs = 500;
+    }
+    else if (m_consecutiveIdenticalFrames == 0)
+    {
+        m_rateLimitIntervalMs = 66;
+    }
 }
+
+
+// ── Static (shared) D3D11 device ──────────────────────────────────
+
+com_ptr<ID3D11Device> ThumbnailCropAndLockWindow::s_d3dDevice;
+com_ptr<ID3D11DeviceContext> ThumbnailCropAndLockWindow::s_d3dContext;
+
+com_ptr<ID3D11Device> ThumbnailCropAndLockWindow::D3D11Device()
+{
+    if (!s_d3dDevice)
+    {
+        D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_0 };
+        winrt::check_hresult(D3D11CreateDevice(
+            nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+            D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+            levels, ARRAYSIZE(levels),
+            D3D11_SDK_VERSION,
+            s_d3dDevice.put(), nullptr, s_d3dContext.put()));
+    }
+    return s_d3dDevice;
+}
+
+com_ptr<ID3D11DeviceContext> ThumbnailCropAndLockWindow::D3D11Context()
+{
+    D3D11Device(); // ensure device & context are created
+    return s_d3dContext;
+}
+
+
+// ── Start / Stop D3D11 capture ────────────────────────────────────
 
 void ThumbnailCropAndLockWindow::StartFrameCapture()
 {
     StopFrameCapture();
+
+    // --- Set up shared memory (same as before) ---
     const DWORD shmSize = sizeof(FrameHeader) + 3840 * 2160 * 4;
     auto shmName = L"ZoneSpy_FrameData_" + std::to_wstring(m_streamId);
     auto evtName = L"ZoneSpy_FrameReady_" + std::to_wstring(m_streamId);
@@ -1057,21 +1153,150 @@ void ThumbnailCropAndLockWindow::StartFrameCapture()
     ZeroMemory(m_frameData, sizeof(FrameHeader));
     m_frameEvent = CreateEventW(nullptr, FALSE, FALSE, evtName.c_str());
     if (!m_frameEvent) { Logger::error(L"Failed to create frame event"); return; }
-    SetTimer(m_window, CAPTURE_TIMER_ID, CAPTURE_INTERVAL_MS, nullptr);
+
+    // --- D3D11 capture setup ---
+    auto d3dDevice = D3D11Device();
+    if (!d3dDevice) { Logger::error(L"No D3D11 device"); return; }
+
+    // Create GraphicsCaptureItem from our own window via IGraphicsCaptureItemInterop.
+    try
+    {
+        auto factory = winrt::get_activation_factory<winrt::Windows::Graphics::Capture::GraphicsCaptureItem>();
+        auto interop = factory.as<IGraphicsCaptureItemInterop>();
+        winrt::check_hresult(interop->CreateForWindow(
+            m_window,
+            winrt::guid_of<winrt::Windows::Graphics::Capture::GraphicsCaptureItem>(),
+            reinterpret_cast<void**>(winrt::put_abi(m_captureItem))));
+    }
+    catch (winrt::hresult_error const& e)
+    {
+        Logger::error(L"CreateCaptureItem failed: {} (0x{:08x})", e.message(), e.code());
+        return;
+    }
+
+    // Wrap our ID3D11Device as IDirect3DDevice.
+    auto dxgiDevice = d3dDevice.as<IDXGIDevice>();
+    winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice direct3DDevice{ nullptr };
+    winrt::check_hresult(::CreateDirect3D11DeviceFromDXGIDevice(
+        dxgiDevice.get(),
+        reinterpret_cast<::IInspectable**>(winrt::put_abi(direct3DDevice))));
+
+    // Determine initial frame size from our window's client area.
+    RECT clientRect = {};
+    GetClientRect(m_window, &clientRect);
+    int cw = clientRect.right - clientRect.left;
+    int ch = clientRect.bottom - clientRect.top;
+    if (cw <= 0 || ch <= 0) { cw = 800; ch = 600; }
+
+    // Create frame pool (1 buffer, BGRA).
+    m_framePool = winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::Create(
+        direct3DDevice,
+        winrt::Windows::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,
+        1,
+        { cw, ch });
+
+    // Register FrameArrived callback.
+    auto self = this;
+    m_frameArrivedToken = m_framePool.FrameArrived(
+        [self](auto const& pool, auto const&) { self->OnFrameArrived(pool, nullptr); });
+
+    // Register SizeChanged → recreate pool at new size.
+    m_sizeChangedToken = m_framePool.SizeChanged(
+        [self](winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& pool, auto const&) {
+            RECT cr = {};
+            GetClientRect(self->m_window, &cr);
+            int w = cr.right - cr.left;
+            int h = cr.bottom - cr.top;
+            if (w > 0 && h > 0)
+            {
+                pool.Recreate(
+                    pool.Device(),
+                    winrt::Windows::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,
+                    1,
+                    { w, h });
+            }
+        });
+
+    // Start capture session.
+    m_captureSession = m_framePool.CreateCaptureSession(m_captureItem);
+    m_captureSession.StartCapture();
+
+    // Reset state.
+    m_previousFrameHash = 0;
+    m_consecutiveIdenticalFrames = 0;
+    m_rateLimitIntervalMs = 66;
+    m_lastFrameTimeMs = GetTickCount64();
+
+    Logger::info(L"D3D11 GPU capture started for stream {}", m_streamId);
 }
 
 void ThumbnailCropAndLockWindow::StopFrameCapture()
 {
-    KillTimer(m_window, CAPTURE_TIMER_ID);
+    // Stop capture session first.
+    if (m_captureSession)
+    {
+        m_captureSession.Close();
+        m_captureSession = nullptr;
+    }
+
+    // Unregister event handlers, then close pool.
+    if (m_framePool)
+    {
+        m_framePool.FrameArrived(m_frameArrivedToken);
+        m_framePool.SizeChanged(m_sizeChangedToken);
+        m_framePool.Close();
+        m_framePool = nullptr;
+    }
+
+    m_captureItem = nullptr;
+
+    // Shared memory cleanup.
     if (m_frameData) { UnmapViewOfFile(m_frameData); m_frameData = nullptr; }
     if (m_frameShm) { CloseHandle(m_frameShm); m_frameShm = nullptr; }
     if (m_frameEvent) { CloseHandle(m_frameEvent); m_frameEvent = nullptr; }
+
+    m_previousFrameHash = 0;
+    m_consecutiveIdenticalFrames = 0;
+    m_rateLimitIntervalMs = 66;
+    m_lastFrameTimeMs = 0;
+
+    Logger::info(L"D3D11 GPU capture stopped for stream {}", m_streamId);
 }
 
 void ThumbnailCropAndLockWindow::UpdateStreamConfig()
 {
 }
 
+uint32_t ThumbnailCropAndLockWindow::ComputeFrameHash(const BYTE* pixels, int w, int h, int stride) const
+{
+    if (!pixels || w <= 0 || h <= 0) return 0;
+
+    uint32_t hash = 0;
+    int stepX = std::max(1, w / 32);
+    int stepY = std::max(1, h / 32);
+
+    for (int y = 0; y < h; y += stepY)
+    {
+        for (int x = 0; x < w; x += stepX)
+        {
+            // Read 4 bytes (BGRA) at this pixel
+            uint32_t pixel = *reinterpret_cast<const uint32_t*>(pixels + y * stride + x * 4);
+            hash = ((hash << 5) + hash) ^ pixel;
+        }
+    }
+    return hash;
+}
+
+// Returns true if the frame content has meaningfully changed since the last capture.
+bool ThumbnailCropAndLockWindow::HasContentChanged(const BYTE* pixels, int w, int h, int stride)
+{
+    uint32_t currentHash = ComputeFrameHash(pixels, w, h, stride);
+    bool changed = (currentHash != m_previousFrameHash);
+    m_previousFrameHash = currentHash;
+    return changed;
+}
+
+// Dynamically adjusts the capture interval based on content stability.
 bool ThumbnailCropAndLockWindow::ReconnectToTarget()
 {
     if (m_destroyed)
