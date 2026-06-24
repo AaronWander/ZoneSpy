@@ -772,15 +772,15 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
     // Phase 2: Snap to other ZoneSpy windows and match perpendicular dimension.
     // Left/right edge snap → match height. Top/bottom edge snap → match width.
     // This lets you build neat rows/columns by resizing a window against a neighbor.
-    // NOTE: Skipped when Shift is held (aspect-ratio lock takes priority).
-    if (!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
+    // When Shift is held, the perpendicular dimension is recalculated from the
+    // original content aspect ratio instead of matching the neighbor's size.
     {
         constexpr int WW_SNAP = SnapDistance + 4;
         struct MatchInfo { HWND self; RECT r; bool found; } match{ m_window, windowRect, false };
 
         EnumWindows([](HWND w, LPARAM lp) -> BOOL {
             auto* mi = reinterpret_cast<MatchInfo*>(lp);
-            if (w == mi->self) return TRUE;  // skip our own window
+            if (w == mi->self) return TRUE;
 
             wchar_t cls[256] = {};
             if (!GetClassNameW(w, cls, 256)) return TRUE;
@@ -791,32 +791,32 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
             RECT o = {};
             if (!GetWindowRect(w, &o)) return TRUE;
 
+            bool shiftHeld = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
             auto oh = o.bottom - o.top;
             auto ow = o.right - o.left;
 
-            // Check all 4 edges for proximity. The first match wins.
             if (abs(self.left - o.right) <= WW_SNAP && self.bottom > o.top && self.top < o.bottom)
             {
                 mi->r.left = o.right;
-                mi->r.bottom = mi->r.top + oh;
+                if (!shiftHeld) { mi->r.bottom = mi->r.top + oh; }
                 mi->found = true;
             }
             else if (abs(self.right - o.left) <= WW_SNAP && self.bottom > o.top && self.top < o.bottom)
             {
                 mi->r.right = o.left;
-                mi->r.bottom = mi->r.top + oh;
+                if (!shiftHeld) { mi->r.bottom = mi->r.top + oh; }
                 mi->found = true;
             }
             else if (abs(self.top - o.bottom) <= WW_SNAP && self.right > o.left && self.left < o.right)
             {
                 mi->r.top = o.bottom;
-                mi->r.right = mi->r.left + ow;
+                if (!shiftHeld) { mi->r.right = mi->r.left + ow; }
                 mi->found = true;
             }
             else if (abs(self.bottom - o.top) <= WW_SNAP && self.right > o.left && self.left < o.right)
             {
                 mi->r.bottom = o.top;
-                mi->r.right = mi->r.left + ow;
+                if (!shiftHeld) { mi->r.right = mi->r.left + ow; }
                 mi->found = true;
             }
             return TRUE;
@@ -824,6 +824,30 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
 
         if (match.found)
         {
+            // When Shift is held, recalc the perpendicular dimension from aspect ratio
+            // instead of matching the neighbor. This keeps content aspect ratio stable.
+            if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
+            {
+                LONG srcW = m_sourceRect.right - m_sourceRect.left;
+                LONG srcH = m_sourceRect.bottom - m_sourceRect.top;
+                if (srcW > 0 && srcH > 0)
+                {
+                    float aspect = static_cast<float>(srcW) / static_cast<float>(srcH);
+                    LONG snappedW = match.r.right - match.r.left;
+                    LONG snappedH = match.r.bottom - match.r.top;
+
+                    if (match.r.left != windowRect.left || match.r.right != windowRect.right)
+                    {
+                        // Horizontal snap → width changed → recalc height
+                        match.r.bottom = match.r.top + static_cast<LONG>(snappedW / aspect);
+                    }
+                    else if (match.r.top != windowRect.top || match.r.bottom != windowRect.bottom)
+                    {
+                        // Vertical snap → height changed → recalc width
+                        match.r.right = match.r.left + static_cast<LONG>(snappedH * aspect);
+                    }
+                }
+            }
             windowRect = match.r;
         }
     }
