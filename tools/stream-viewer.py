@@ -9,7 +9,7 @@ import mmap
 import win32event
 import cv2
 
-SHM_SIZE = 20 + 3840 * 2160 * 4  # 33,177,620 bytes (matches C++ allocation)
+SHM_SIZE = 20 + 3840 * 2160 * 4
 DISPLAY_WIDTH = 960
 
 
@@ -17,14 +17,12 @@ def load_config():
     path = os.path.join(os.environ.get("LOCALAPPDATA", ""), "ZoneSpy", "streams.json")
     if not os.path.exists(path):
         print(f"Config not found: {path}")
-        print("Is ZoneSpy running with at least one cropped window?")
         return None
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def open_streams(streams):
-    """Open shared memory and events for each stream. Return list of (id, name, buf, evt)."""
     result = []
     for s in streams:
         sid = s["id"]
@@ -44,19 +42,19 @@ def open_streams(streams):
 
 
 def read_frame(buf):
-    """Read one frame from shared memory. Return (frame, timestamp) or (None, 0)."""
+    """Return (pixels, timestamp) or (None, reason_string)."""
     try:
         buf.seek(0)
-        fc = struct.unpack("I", buf.read(4))[0]
-        ts = struct.unpack("Q", buf.read(8))[0]
-        w = struct.unpack("I", buf.read(4))[0]
-        h = struct.unpack("I", buf.read(4))[0]
+        raw = buf.read(20)
+        fc, ts, w, h = struct.unpack("I Q I I", raw)
+        if fc == 0 and w == 0 and h == 0:
+            return None, f"no_capture_yet(header=all_zero)"
         if not (0 < w <= 3840 and 0 < h <= 2160):
-            return None, 0
+            return None, f"invalid_dims({w}x{h})"
         pixels = np.frombuffer(buf.read(w * h * 4), dtype=np.uint8).reshape(h, w, 4)
         return pixels, ts
-    except Exception:
-        return None, 0
+    except Exception as e:
+        return None, f"read_error({e})"
 
 
 def main():
@@ -66,7 +64,7 @@ def main():
 
     streams = config.get("streams", [])
     if not streams:
-        print("No streams in config. Create a cropped window first.")
+        print("No streams in config.")
         return 1
 
     print(f"Connecting to {len(streams)} stream(s)...")
@@ -75,29 +73,46 @@ def main():
         print("Could not open any streams.")
         return 1
 
-    print(f"Opened {len(opened)} stream(s). Press 'q' to quit, 'f' to toggle size.")
+    print(f"Opened {len(opened)} stream(s).")
     frames = [None] * len(opened)
-    last_frame = [-1] * len(opened)
     display_w = DISPLAY_WIDTH
+    frame_count = 0
+    last_report = 0
+
+    handles = [e for _, _, _, e in opened if e is not None]
+    statuses = [""] * len(opened)
 
     while True:
-        # Wait for any event (100ms timeout = ~10fps polling fallback)
-        handles = [e for _, _, _, e in opened if e is not None]
         if len(handles) == len(opened):
-            win32event.WaitForMultipleObjects(handles, False, 100)
+            try:
+                win32event.WaitForMultipleObjects(handles, False, 100)
+            except:
+                pass
 
-        # Read all streams
         any_new = False
         for i, (sid, name, buf, evt) in enumerate(opened):
-            frame, ts = read_frame(buf)
+            frame, reason = read_frame(buf)
             if frame is not None:
                 frames[i] = frame
+                statuses[i] = f"OK ({frame.shape[1]}x{frame.shape[0]})"
                 any_new = True
+            else:
+                if isinstance(reason, str):
+                    statuses[i] = reason
+
+        # Report status periodically
+        now = time.time()
+        if now - last_report > 3:
+            last_report = now
+            lines = [f"  [{time.strftime('%H:%M:%S')}] Stream status:"]
+            for i, (sid, name, buf, evt) in enumerate(opened):
+                lines.append(f"    [{sid}] {name}: {statuses[i]}")
+            print("\n".join(lines))
 
         if not any_new:
+            time.sleep(0.01)
             continue
 
-        # Build display: resize all to common width, stack vertically
         rows = []
         valid_pairs = [(f, n) for f, (_, n, _, _) in zip(frames, opened) if f is not None]
         for frame, name in valid_pairs:
@@ -106,7 +121,6 @@ def main():
             new_h = int(h * scale)
             resized = cv2.resize(frame, (display_w, new_h))
             bgr = cv2.cvtColor(resized, cv2.COLOR_BGRA2BGR)
-            # Add label
             cv2.putText(bgr, name, (8, 24), cv2.FONT_HERSHEY_SIMPLEX,
                         0.6, (0, 255, 0), 2)
             rows.append(bgr)
@@ -116,12 +130,15 @@ def main():
 
         display = np.vstack(rows)
         cv2.imshow("ZoneSpy Stream Viewer", display)
-
-        key = cv2.waitKey(1) & 0xFF
+        key = cv2.waitKey(30) & 0xFF
         if key == ord("q"):
             break
         elif key == ord("f"):
             display_w = 1920 if display_w == 960 else 960
+
+        frame_count += 1
+        if frame_count == 1:
+            print(f"  First frame displayed! Size: {display.shape[1]}x{display.shape[0]}")
 
     for _, _, buf, _ in opened:
         buf.close()
