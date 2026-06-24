@@ -1027,8 +1027,16 @@ void ThumbnailCropAndLockWindow::CaptureFrame()
         hdr->timestamp = GetTickCount64();
         hdr->width = static_cast<DWORD>(w);
         hdr->height = static_cast<DWORD>(h);
-        SetEvent(m_frameEvent);
     }
+    else
+    {
+        // PrintWindow failed - still increment frameCount so viewer can detect activity
+        auto hdr = static_cast<FrameHeader*>(m_frameData);
+        hdr->frameCount++;
+        hdr->timestamp = GetTickCount64();
+    }
+    SetEvent(m_frameEvent);
+
     DeleteObject(hbit);
     DeleteDC(hdcMem);
     ReleaseDC(nullptr, hdcScreen);
