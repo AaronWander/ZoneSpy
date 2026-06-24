@@ -152,6 +152,27 @@ LRESULT ThumbnailCropAndLockWindow::MessageHandler(UINT const message, WPARAM co
             winrt::check_hresult(DwmUpdateThumbnailProperties(m_thumbnail.get(), &properties));
         }
 
+        // Update window title with current dimensions
+        RECT wr = {};
+        winrt::check_bool(GetWindowRect(m_window, &wr));
+        int newW = wr.right - wr.left;
+        int newH = wr.bottom - wr.top;
+        wchar_t curTitle[256] = {};
+        GetWindowTextW(m_window, curTitle, 256);
+        std::wsize_t bracket = std::wstring(curTitle).rfind(L" [");
+        if (bracket != std::wstring::npos && std::wstring(curTitle + bracket).find(L"×") != std::wstring::npos)
+        {
+            // Strip old size suffix before updating
+            std::wstring base(curTitle, bracket);
+            base += L" [" + std::to_wstring(newW) + L"×" + std::to_wstring(newH) + L"]";
+            SetWindowTextW(m_window, base.c_str());
+        }
+        else
+        {
+            std::wstring newTitle = curTitle + std::wstring(L" [") + std::to_wstring(newW) + L"×" + std::to_wstring(newH) + L"]";
+            SetWindowTextW(m_window, newTitle.c_str());
+        }
+
     if (message == WM_SIZING)
     {
         auto windowRect = reinterpret_cast<RECT*>(lparam);
@@ -746,6 +767,73 @@ void ThumbnailCropAndLockWindow::SnapSizingRect(RECT& windowRect, WPARAM sizingE
         break;
     default:
         break;
+    }
+
+    // Phase 2: Snap to other ZoneSpy windows and match perpendicular dimension.
+    // Left/right edge snap → match height. Top/bottom edge snap → match width.
+    // This lets you build neat rows/columns by resizing a window against a neighbor.
+    {
+        constexpr int WW_SNAP = SnapDistance + 4;  // 16px threshold for window-to-window snap
+        struct MatchInfo { RECT r; bool found; } match{ windowRect, false };
+
+        EnumWindows([](HWND w, LPARAM lp) -> BOOL {
+            auto* mi = reinterpret_cast<MatchInfo*>(lp);
+            RECT self = mi->r;
+            WPARAM edge = reinterpret_cast<WPARAM>(mi);  // We'll pass edge differently
+            
+            if (w == GetAncestor(mi->r.left ? GetDesktopWindow() : nullptr, GA_ROOT))
+                return TRUE;
+            // Can't use GetAncestor here — we don't have 'this'. Use self rect sentinel.
+            
+            // Determine if this is a ZoneSpy window
+            wchar_t cls[256] = {};
+            if (!GetClassNameW(w, cls, 256)) return TRUE;
+            if (ThumbnailCropAndLockWindow::ClassName != cls) return TRUE;
+            if (!IsWindowVisible(w)) return TRUE;
+
+            RECT o = {};
+            if (!GetWindowRect(w, &o)) return TRUE;
+
+            auto ow = o.right - o.left;
+            auto oh = o.bottom - o.top;
+
+            // Check the 4 possible snap directions using area from original MatchInfo
+            // We need the edge type — passed via mi struct
+            // Left edge: self.left near other.right
+            if (abs(self.left - o.right) <= WW_SNAP && self.bottom > o.top && self.top < o.bottom)
+            {
+                mi->r.left = o.right;
+                mi->r.bottom = mi->r.top + oh;
+                mi->found = true;
+            }
+            // Right edge: self.right near other.left
+            else if (abs(self.right - o.left) <= WW_SNAP && self.bottom > o.top && self.top < o.bottom)
+            {
+                mi->r.right = o.left;
+                mi->r.bottom = mi->r.top + oh;
+                mi->found = true;
+            }
+            // Top edge: self.top near other.bottom
+            else if (abs(self.top - o.bottom) <= WW_SNAP && self.right > o.left && self.left < o.right)
+            {
+                mi->r.top = o.bottom;
+                mi->r.right = mi->r.left + ow;
+                mi->found = true;
+            }
+            // Bottom edge: self.bottom near other.top
+            else if (abs(self.bottom - o.top) <= WW_SNAP && self.right > o.left && self.left < o.right)
+            {
+                mi->r.bottom = o.top;
+                mi->r.right = mi->r.left + ow;
+                mi->found = true;
+            }
+            return TRUE;
+        }, reinterpret_cast<LPARAM>(&match));
+
+        if (match.found)
+        {
+            windowRect = match.r;
+        }
     }
 }
 
