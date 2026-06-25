@@ -1325,7 +1325,7 @@ static const wchar_t RESIZE_DLG_CLASS[] = L"ZoneSpy_ResizeDlg";
 
 struct ResizeDlgState
 {
-    ThumbnailCropAndLockWindow* parent;
+    ThumbnailCropAndLockWindow* parent = nullptr;
     bool locked = false;
     double ratio = 1.0;
     bool updating = false;
@@ -1338,7 +1338,7 @@ struct ResizeDlgState
 
 LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    auto* state = reinterpret_cast<ResizeDlgState*>(GetWindowLongPtrW(hDlg, GWLP_USERDATA));
+    auto* state = static_cast<ResizeDlgState*>(reinterpret_cast<void*>(GetWindowLongPtrW(hDlg, GWLP_USERDATA)));
 
     switch (msg)
     {
@@ -1521,7 +1521,7 @@ void ThumbnailCropAndLockWindow::ShowResizeDialog()
         registered = true;
     }
 
-    auto* state = new ResizeDlgState();
+    auto state = std::make_unique<ResizeDlgState>();
     state->parent = this;
 
     int dpi = GetDpiForWindow(m_window);
@@ -1537,16 +1537,14 @@ void ThumbnailCropAndLockWindow::ShowResizeDialog()
                                 RESIZE_DLG_CLASS, L"Resize Window",
                                 WS_CAPTION | WS_POPUP | WS_SYSMENU | WS_VISIBLE,
                                 x, y, dlgW, dlgH,
-                                m_window, nullptr, GetModuleHandleW(nullptr), state);
+                                m_window, nullptr, GetModuleHandleW(nullptr), state.get());
 
     if (hDlg)
     {
         SetForegroundWindow(hDlg);
         SetFocus(state->hWidth);
         EnableWindow(m_window, FALSE);
+        state.release();  // dialog now owns this
     }
-    else
-    {
-        delete state;
-    }
+    // state is automatically deleted by unique_ptr if dialog creation failed
 }
