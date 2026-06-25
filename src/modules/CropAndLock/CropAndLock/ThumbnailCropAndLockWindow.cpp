@@ -1402,7 +1402,7 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
             state->ratio = static_cast<double>(curW) / curH;
 
         // Set initial font for edit controls
-        HFONT hFont = reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+        HFONT hFont = static_cast<HFONT>(static_cast<void*>(GetStockObject(DEFAULT_GUI_FONT)));
         SendMessageW(state->hWidth, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
         SendMessageW(state->hHeight, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
         SendMessageW(state->hLock, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
