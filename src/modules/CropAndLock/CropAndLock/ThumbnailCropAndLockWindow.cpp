@@ -1500,6 +1500,8 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
         return 0;
 
     case WM_DESTROY:
+        if (state && state->parent)
+            EnableWindow(state->parent->Handle(), TRUE);
         delete state;
         return 0;
     }
