@@ -152,27 +152,6 @@ LRESULT ThumbnailCropAndLockWindow::MessageHandler(UINT const message, WPARAM co
             winrt::check_hresult(DwmUpdateThumbnailProperties(m_thumbnail.get(), &properties));
         }
 
-        // Update window title with current dimensions
-        RECT wr = {};
-        winrt::check_bool(GetWindowRect(m_window, &wr));
-        int newW = wr.right - wr.left;
-        int newH = wr.bottom - wr.top;
-        wchar_t curTitle[256] = {};
-        GetWindowTextW(m_window, curTitle, 256);
-        size_t bracket = std::wstring(curTitle).rfind(L" [");
-        if (bracket != std::wstring::npos && std::wstring(curTitle + bracket).find(L"×") != std::wstring::npos)
-        {
-            // Strip old size suffix before updating
-            std::wstring base(curTitle, bracket);
-            base += L" [" + std::to_wstring(newW) + L"×" + std::to_wstring(newH) + L"]";
-            SetWindowTextW(m_window, base.c_str());
-        }
-        else
-        {
-            std::wstring newTitle = curTitle + std::wstring(L" [") + std::to_wstring(newW) + L"×" + std::to_wstring(newH) + L"]";
-            SetWindowTextW(m_window, newTitle.c_str());
-        }
-
     if (message == WM_SIZING)
     {
         auto windowRect = reinterpret_cast<RECT*>(lparam);
