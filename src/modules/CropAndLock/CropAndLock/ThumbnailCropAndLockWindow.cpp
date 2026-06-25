@@ -1505,7 +1505,7 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
 
     case WM_DESTROY:
         if (state && state->parent)
-            // EnableWindow(state->parent->Handle(), TRUE);  // disabled: no longer disabling parent
+            EnableWindow(state->parent->Handle(), TRUE);
         delete state;
         return 0;
     }
@@ -1551,7 +1551,7 @@ void ThumbnailCropAndLockWindow::ShowResizeDialog()
     {
         SetForegroundWindow(hDlg);
         SetFocus(state->hWidth);
-        // EnableWindow(m_window, FALSE);  // disabled: blocks DWM thumbnail rendering
+        EnableWindow(m_window, FALSE);
         state.release();  // dialog now owns this
     }
     // state is automatically deleted by unique_ptr if dialog creation failed
