@@ -1393,11 +1393,11 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
                              WS_CHILD | WS_VISIBLE | BS_PUSHLIKE | BS_CENTER | WS_TABSTOP, 103);
         // OK button
         state->hOk = mkWin(L"BUTTON", L"OK",
-                           margin + MulDiv(150, dpi, 96), btnRowY, btnW, btnH,
+                           margin + MulDiv(60, dpi, 96), btnRowY, btnW, btnH,
                            WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | WS_TABSTOP, 104);
         // Cancel button
         state->hCancel = mkWin(L"BUTTON", L"Cancel",
-                               margin + MulDiv(150, dpi, 96) + btnW + MulDiv(8, dpi, 96), btnRowY, btnW, btnH,
+                               margin + MulDiv(60, dpi, 96) + btnW + MulDiv(8, dpi, 96), btnRowY, btnW, btnH,
                                WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP, 105);
 
         if (curW > 0 && curH > 0)
