@@ -1372,9 +1372,13 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
                                    hDlg, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), hInst, nullptr);
         };
 
-        // Single row:  [ width ]  x  [ height ]  lock
-        int editW = MulDiv(100, dpi, 96);
+        // Single row:  W [ 1920 ]  H [ 1080 ]  lock
+        int editW = MulDiv(80, dpi, 96);
         int curX = margin;
+
+        // "W" label
+        mkWin(L"STATIC", L"W", curX, row1y + 4, MulDiv(14, dpi, 96), editH, SS_CENTER, 0);
+        curX += MulDiv(14, dpi, 96) + MulDiv(4, dpi, 96);
 
         // Width edit
         state->hWidth = mkWin(L"EDIT", std::to_wstring(curW).c_str(),
@@ -1382,9 +1386,9 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
                               WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_NUMBER | ES_RIGHT, 101);
         curX += editW + MulDiv(6, dpi, 96);
 
-        // "x" separator
-        mkWin(L"STATIC", L"x", curX, row1y + 4, MulDiv(12, dpi, 96), editH, SS_CENTER, 0);
-        curX += MulDiv(12, dpi, 96) + MulDiv(6, dpi, 96);
+        // "H" label
+        mkWin(L"STATIC", L"H", curX, row1y + 4, MulDiv(14, dpi, 96), editH, SS_CENTER, 0);
+        curX += MulDiv(14, dpi, 96) + MulDiv(4, dpi, 96);
 
         // Height edit
         state->hHeight = mkWin(L"EDIT", std::to_wstring(curH).c_str(),
