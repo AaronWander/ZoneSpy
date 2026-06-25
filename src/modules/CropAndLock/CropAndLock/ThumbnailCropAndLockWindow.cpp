@@ -1338,7 +1338,7 @@ struct ResizeDlgState
 
 LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    auto* state = static_cast<ResizeDlgState*>(reinterpret_cast<void*>(GetWindowLongPtrW(hDlg, GWLP_USERDATA)));
+    auto* state = static_cast<ResizeDlgState*>(static_cast<void*>(GetWindowLongPtrW(hDlg, GWLP_USERDATA)));
 
     switch (msg)
     {
