@@ -36,6 +36,7 @@ struct ThumbnailCropAndLockWindow : robmikh::common::desktop::DesktopWindow<Thum
 
 	int GetStreamId() const { return m_streamId; }
 	void SetClickThrough(bool enable);
+	void ShowResizeDialog();
 
 	void StartFrameCapture();
 	void StopFrameCapture();
