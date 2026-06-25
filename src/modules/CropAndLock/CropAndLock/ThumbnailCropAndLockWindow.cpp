@@ -1353,14 +1353,12 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
 
         HINSTANCE hInst = cs->hInstance;
         int dpi = GetDpiForWindow(hDlg);
-        int labelW = MulDiv(50, dpi, 96);
         int editH = MulDiv(24, dpi, 96);
         int btnW = MulDiv(80, dpi, 96);
         int btnH = MulDiv(26, dpi, 96);
         int lockW = MulDiv(30, dpi, 96);
         int margin = MulDiv(12, dpi, 96);
         int row1y = MulDiv(20, dpi, 96);
-        int row2y = row1y + MulDiv(35, dpi, 96);
         int btnRowY = row2y + MulDiv(50, dpi, 96);
 
         RECT pr = {};
