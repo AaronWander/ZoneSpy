@@ -1393,7 +1393,7 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
         curX += editW + MulDiv(8, dpi, 96);
 
         // Lock button
-        state->hLock = mkWin(L"BUTTON", L"\xe2\x97\x81",
+        state->hLock = mkWin(L"BUTTON", L"\U0001F513",
                              curX, row1y, lockW, editH,
                              WS_CHILD | WS_VISIBLE | BS_PUSHLIKE | BS_CENTER | WS_TABSTOP, 103);
 
@@ -1435,11 +1435,11 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
                 int h = _wtoi(buf);
                 if (w > 0 && h > 0)
                     state->ratio = static_cast<double>(w) / h;
-                SetWindowTextW(state->hLock, L"\xf0\x9f\x94\x92");
+                SetWindowTextW(state->hLock, L"\U0001F512");
             }
             else
             {
-                SetWindowTextW(state->hLock, L"\xf0\x9f\x94\x93");
+                SetWindowTextW(state->hLock, L"\U0001F513");
             }
         }
         else if (id == 104 && code == BN_CLICKED)
@@ -1530,7 +1530,7 @@ void ThumbnailCropAndLockWindow::ShowResizeDialog()
 
     int dpi = GetDpiForWindow(m_window);
     int dlgW = MulDiv(300, dpi, 96);
-    int dlgH = MulDiv(110, dpi, 96);
+    int dlgH = MulDiv(140, dpi, 96);
 
     RECT pr = {};
     GetWindowRect(m_window, &pr);
