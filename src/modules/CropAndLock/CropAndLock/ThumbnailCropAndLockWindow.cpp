@@ -1354,7 +1354,6 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
         HINSTANCE hInst = cs->hInstance;
         int dpi = GetDpiForWindow(hDlg);
         int labelW = MulDiv(50, dpi, 96);
-        int editW = MulDiv(160, dpi, 96);
         int editH = MulDiv(24, dpi, 96);
         int btnW = MulDiv(80, dpi, 96);
         int btnH = MulDiv(26, dpi, 96);
