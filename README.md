@@ -24,12 +24,16 @@ Unlike the original PowerToys module, ZoneSpy runs independently—no PowerToys 
 ## Features
 
 - **Live window thumbnail**: Select any region of any window and display it in an always-on-top floating window with real-time DWM content projection
-- **Shared memory streaming** (`ZoneSpy_FrameData_{id}`): Each thumbnail window exposes its content as BGRA pixel data in a named shared memory buffer at ~15 fps, with a frame-ready event (`ZoneSpy_FrameReady_{id}`) for synchronization
+- **Shared memory streaming** (`ZoneSpy_FrameData_{id}`): Each thumbnail window exposes its content as BGRA pixel data in a named shared memory buffer at up to ~30 fps, with a frame-ready event (`ZoneSpy_FrameReady_{id}`) for synchronization
 - **Python stream viewer**: `tools/stream-viewer.py` connects to all active streams and displays them in a single OpenCV window
-- **Borderless & snapping**: Cropped windows have no title bar—drag and snap to screen edges or other ZoneSpy windows
+- **Content-change detection**: When monitored content is static, capture rate drops to ~2 fps and shared memory is not signaled—consumers aren't woken for unchanged frames
+- **Frame sequence guard**: Shared memory frame count uses odd/even protocol—consumers can detect torn frames by checking parity
+- **Worker-thread capture**: Frame capture runs on a dedicated thread, not the UI message loop; dragging and menu interactions are never blocked
+- **Resize dialog**: Right-click any thumbnail window → "Resize..." to set exact width and height. Optional aspect-ratio lock (🔒) keeps proportions when editing one dimension
+- **Borderless & snapping**: Cropped windows have no title bar—drag and snap to screen edges
 - **Aspect-ratio lock**: Hold `Shift` while resizing to preserve the original content aspect ratio
 - **Auto-reconnect**: When the source window is closed and reopened, the cropped window automatically reconnects within seconds
-- **Click-Through**: Toggle from the tray menu to make mouse clicks pass through the cropped window—ideal for monitoring content underneath
+- **Click-Through**: Toggle from the tray menu or right-click menu to make mouse clicks pass through
 - **Always on top**: Cropped windows stay above all other windows by default (toggleable per window: right-click → "Always on top")
 - **Auto-start**: Enable from tray menu to launch at Windows boot
 - **Window state persistence**: Cropped window positions are saved and restored across sessions
@@ -93,6 +97,13 @@ Right-click the tray icon:
 - **Click-Through** — toggle mouse passthrough
 - **Launch at startup** — auto-start with Windows
 - **Exit** — quit ZoneSpy
+
+## Right-Click Menu (per window)
+
+Right-click any ZoneSpy thumbnail window:
+- **Always on top** — toggle whether this window stays above others
+- **Resize...** — open a dialog to set exact width and height (with optional aspect-ratio lock)
+- **Close** — close this thumbnail
 
 ## Building
 
