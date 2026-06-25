@@ -1359,7 +1359,7 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
         int lockW = MulDiv(30, dpi, 96);
         int margin = MulDiv(12, dpi, 96);
         int row1y = MulDiv(20, dpi, 96);
-        int btnRowY = row2y + MulDiv(50, dpi, 96);
+        int btnRowY = row1y + MulDiv(50, dpi, 96);
 
         RECT pr = {};
         GetWindowRect(state->parent->Handle(), &pr);
