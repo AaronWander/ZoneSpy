@@ -1375,30 +1375,36 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
                                    hDlg, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), hInst, nullptr);
         };
 
-        // "Width:" label
-        mkWin(L"STATIC", L"Width:", margin, row1y + 4, labelW, editH, SS_RIGHT, 0);
+        // Single row:  [ width ]  x  [ height ]  lock
+        int editW = MulDiv(100, dpi, 96);
+        int curX = margin;
+
         // Width edit
         state->hWidth = mkWin(L"EDIT", std::to_wstring(curW).c_str(),
-                              margin + labelW + MulDiv(6, dpi, 96), row1y, editW, editH,
+                              curX, row1y, editW, editH,
                               WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_NUMBER | ES_RIGHT, 101);
-        // "Height:" label
-        mkWin(L"STATIC", L"Height:", margin, row2y + 4, labelW, editH, SS_RIGHT, 0);
+        curX += editW + MulDiv(6, dpi, 96);
+
+        // "x" separator
+        mkWin(L"STATIC", L"x", curX, row1y + 4, MulDiv(12, dpi, 96), editH, SS_CENTER, 0);
+        curX += MulDiv(12, dpi, 96) + MulDiv(6, dpi, 96);
+
         // Height edit
         state->hHeight = mkWin(L"EDIT", std::to_wstring(curH).c_str(),
-                               margin + labelW + MulDiv(6, dpi, 96), row2y, editW, editH,
+                               curX, row1y, editW, editH,
                                WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_NUMBER | ES_RIGHT, 102);
-        // Lock button (unlocked)
-        state->hLock = mkWin(L"BUTTON", L"\xf0\x9f\x94\x93",
-                             margin + labelW + MulDiv(6, dpi, 96) + editW + MulDiv(8, dpi, 96), row2y, lockW, editH,
+        curX += editW + MulDiv(8, dpi, 96);
+
+        // Lock button
+        state->hLock = mkWin(L"BUTTON", L"\xe2\x97\x81",
+                             curX, row1y, lockW, editH,
                              WS_CHILD | WS_VISIBLE | BS_PUSHLIKE | BS_CENTER | WS_TABSTOP, 103);
-        // OK button
+
+        // OK button (centered)
+        int okX = (MulDiv(300, dpi, 96) - btnW) / 2;
         state->hOk = mkWin(L"BUTTON", L"OK",
-                           margin + MulDiv(60, dpi, 96), btnRowY, btnW, btnH,
+                           okX, btnRowY, btnW, btnH,
                            WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | WS_TABSTOP, 104);
-        // Cancel button
-        state->hCancel = mkWin(L"BUTTON", L"Cancel",
-                               margin + MulDiv(60, dpi, 96) + btnW + MulDiv(8, dpi, 96), btnRowY, btnW, btnH,
-                               WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP, 105);
 
         if (curW > 0 && curH > 0)
             state->ratio = static_cast<double>(curW) / curH;
@@ -1409,7 +1415,7 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
         SendMessageW(state->hHeight, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
         SendMessageW(state->hLock, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
         SendMessageW(state->hOk, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
-        SendMessageW(state->hCancel, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
+
 
         return 0;
     }
@@ -1456,10 +1462,7 @@ LRESULT CALLBACK ResizeDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam
                 MessageBeep(MB_ICONWARNING);
             }
         }
-        else if (id == 105 && code == BN_CLICKED)
-        {
-            DestroyWindow(hDlg);
-        }
+
         else if ((id == 101 || id == 102) && code == EN_CHANGE)
         {
             if (state->updating || !state->locked) break;
@@ -1530,7 +1533,7 @@ void ThumbnailCropAndLockWindow::ShowResizeDialog()
 
     int dpi = GetDpiForWindow(m_window);
     int dlgW = MulDiv(300, dpi, 96);
-    int dlgH = MulDiv(140, dpi, 96);
+    int dlgH = MulDiv(110, dpi, 96);
 
     RECT pr = {};
     GetWindowRect(m_window, &pr);
