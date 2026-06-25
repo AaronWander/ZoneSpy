@@ -429,6 +429,8 @@ void ThumbnailCropAndLockWindow::ShowContextMenu(POINT point)
 
     AppendMenuW(menu, MF_STRING | (m_isTopMost ? MF_CHECKED : MF_UNCHECKED), toggleTopMostCommand, L"Always on top");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, 3, L"Resize...");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, closeCommand, L"Close");
 
     auto command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, m_window, nullptr);
